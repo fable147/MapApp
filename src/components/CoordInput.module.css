@@ -1,0 +1,107 @@
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 60px;
+  z-index: 10;
+  background: var(--panel);
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  min-width: 300px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  color: var(--t1);
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  min-width: 0;
+}
+
+.input:focus {
+  border-color: var(--bda);
+}
+
+.input::placeholder {
+  color: var(--t3);
+  font-size: 12px;
+}
+
+.goBtn {
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.goBtn:hover { opacity: 0.85; }
+
+.closeBtn {
+  background: transparent;
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  color: var(--t3);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.closeBtn:hover { color: var(--t1); border-color: var(--t2); }
+
+.error {
+  font-size: 11px;
+  color: var(--danger);
+  padding: 0 2px;
+}
+
+.centerHint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  font-size: 11px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  cursor: pointer;
+  text-align: left;
+  padding: 0 2px;
+}
+
+.centerHint:hover { color: var(--accent); }
+
+@media (max-width: 768px) {
+  .panel {
+    top: 10px;
+    left: 58px;
+    min-width: calc(100vw - 80px);
+  }
+}

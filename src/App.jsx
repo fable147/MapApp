@@ -1,0 +1,366 @@
+import React, { useRef, useState, useCallback, useEffect } from 'react'
+import { useMap } from './hooks/useMap'
+import { usePins } from './hooks/usePins'
+import { useRouting } from './hooks/useRouting'
+import { useWeather } from './hooks/useWeather'
+import { useTheme } from './hooks/useTheme'
+import { useElevation } from './hooks/useElevation'
+import { usePoi } from './hooks/usePoi'
+import { useLayerManager } from './hooks/useLayerManager'
+import ContextMenu from './components/ContextMenu'
+import ElevationChart from './components/ElevationChart'
+import { haversine, geocode } from './utils/geo'
+import {
+  DRAW_SOURCE_ID, MEASURE_SOURCE_ID,
+  TURKEY_CENTER, TURKEY_ZOOM,
+} from './utils/constants'
+import Sidebar from './components/Sidebar'
+import MapControls from './components/MapControls'
+import styles from './App.module.css'
+
+const MODE_TIPS = {
+  pan:     'Gezin modu aktif',
+  pin:     'Pin Koy modu — tıklayın',
+  draw:    'Çizim modu — çift tıkla bitir',
+  measure: 'Ölçüm modu — 2 noktaya tıkla',
+}
+
+const MODE_STATUS = {
+  pan:     'Haritayı sürükleyip zoom yapabilirsiniz',
+  pin:     'Haritada istediğiniz yere tıklayarak pin ekleyin',
+  draw:    'Tıklayarak çizgi noktaları ekleyin • Çift tıklayarak tamamlayın',
+  measure: 'İki noktaya tıklayarak aralarındaki mesafeyi ölçün',
+}
+
+export default function App() {
+  const containerRef = useRef(null)
+  const [mode, setModeState] = useState('pan')
+  const modeRef = useRef('pan')
+  const [currentStyle, setCurrentStyle] = useState('liberty')
+  const [status, setStatus] = useState('Harita hazır')
+  const [distResult, setDistResult] = useState(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [activeMobileTab, setActiveMobileTab] = useState(null)
+
+  const drawCoordsRef    = useRef([])
+  const measurePointsRef = useRef([])
+  const measureMarkersRef = useRef([])
+
+  // map click — modeRef üzerinden okur, stale closure yok
+  const handleMapClick = useCallback((e) => {
+    const { lng, lat } = e.lngLat
+    const m = modeRef.current
+    if (m === 'pin') {
+      addPinRef.current?.(lng, lat)
+    } else if (m === 'draw') {
+      drawCoordsRef.current = [...drawCoordsRef.current, [lng, lat]]
+      setGeoJsonLineRef.current?.(DRAW_SOURCE_ID, drawCoordsRef.current)
+      setStatus(`Çizim: ${drawCoordsRef.current.length} nokta — çift tıklayarak bitir`)
+    } else if (m === 'measure') {
+      measurePointsRef.current = [...measurePointsRef.current, [lng, lat]]
+      addMeasureMarkerLocal(lng, lat, measurePointsRef.current.length)
+      if (measurePointsRef.current.length === 2) {
+        const d = haversine(measurePointsRef.current[0], measurePointsRef.current[1])
+        setGeoJsonLineRef.current?.(MEASURE_SOURCE_ID, measurePointsRef.current)
+        setStatus(`Mesafe: ${d.toFixed(1)} km`)
+        measurePointsRef.current = []
+        setTimeout(() => {
+          measureMarkersRef.current.forEach((mk) => mk.remove())
+          measureMarkersRef.current = []
+          clearGeoJsonRef.current?.(MEASURE_SOURCE_ID)
+        }, 4000)
+      } else {
+        setStatus('2. noktayı işaretleyin')
+      }
+    }
+  }, [])
+
+  // Ref köprüleri — hook'lar henüz tanımlı değilken callback yakalanmasın
+  const addPinRef        = useRef(null)
+  const setGeoJsonLineRef = useRef(null)
+  const clearGeoJsonRef  = useRef(null)
+
+  const { mapRef, setGeoJsonLine, clearGeoJson, flyTo, fitBounds, changeStyle, setCursor } =
+    useMap(containerRef, handleMapClick)
+
+  const { pins, addPin, removePin, clearPins } = usePins(mapRef)
+  const { getRoute, selectRoute, clearRoutes, reinitLayers } = useRouting(mapRef)
+  const { weather, loading: weatherLoading, error: weatherError, fetchWeather, clearWeather } = useWeather()
+  const { theme, toggleTheme } = useTheme()
+  const { profile, loading: elevLoading, error: elevError, fetchProfile, clearProfile } = useElevation()
+  const { poiList, loading: poiLoading, error: poiError, activeCategory: poiActiveCategory,
+          searchPoi, focusPoi, clearPoi } = usePoi(mapRef)
+  const { layers: customLayers, addLayer, removeLayer, toggleLayer, changeColor: changeLayerColor,
+          reinitLayers: reinitCustomLayers } = useLayerManager(mapRef)
+  const fetchProfileRef = useRef(null)
+  useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
+  const [contextMenu, setContextMenu] = useState(null)
+
+  // Ref'leri güncelle
+  useEffect(() => { addPinRef.current = addPin },        [addPin])
+  useEffect(() => { setGeoJsonLineRef.current = setGeoJsonLine }, [setGeoJsonLine])
+  useEffect(() => { clearGeoJsonRef.current = clearGeoJson },     [clearGeoJson])
+
+  function addMeasureMarkerLocal(lng, lat, n) {
+    if (!mapRef.current) return
+    const mgl = window.maplibregl
+    const el = document.createElement('div')
+    el.style.cssText =
+      'width:22px;height:22px;background:#34d9a0;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#0e1117;font-size:11px;font-weight:700;'
+    el.textContent = n
+    const mk = new mgl.Marker({ element: el }).setLngLat([lng, lat]).addTo(mapRef.current)
+    measureMarkersRef.current = [...measureMarkersRef.current, mk]
+  }
+
+  useEffect(() => {
+    if (!mapRef.current) return
+    const map = mapRef.current
+    const handleDblClick = (e) => {
+      if (modeRef.current === 'draw' && drawCoordsRef.current.length > 1) {
+        e.preventDefault()
+        const completed = [...drawCoordsRef.current]
+        setStatus(`Çizim tamamlandı — ${completed.length} nokta`)
+        drawCoordsRef.current = []
+        setTimeout(() => clearGeoJson(DRAW_SOURCE_ID), 100)
+        fetchProfileRef.current?.(completed)
+      }
+    }
+    map.on('dblclick', handleDblClick)
+    map.on('contextmenu', handleContextMenu)
+    return () => {
+      map.off('dblclick', handleDblClick)
+      map.off('contextmenu', handleContextMenu)
+    }
+  }, [clearGeoJson])
+
+  function setMode(m) {
+    modeRef.current = m
+    setModeState(m)
+    setCursor(m === 'pan' ? '' : 'crosshair')
+    drawCoordsRef.current = []
+    measurePointsRef.current = []
+    measureMarkersRef.current.forEach((mk) => mk.remove())
+    measureMarkersRef.current = []
+    setStatus(MODE_STATUS[m])
+  }
+
+  function handleStyleChange(key) {
+    setCurrentStyle(key)
+    changeStyle(key, () => { reinitLayers(); reinitCustomLayers() })
+    setStatus('Altlık değiştirildi')
+  }
+
+  async function handleGetRoute(origin, dest) {
+    setStatus('Rota hesaplanıyor...')
+    try {
+      const routes = await getRoute(origin, dest)
+      if (routes) setStatus(`${routes.length} rota bulundu • ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
+      else setStatus('Rota bulunamadı')
+      return routes
+    } catch (e) {
+      setStatus('Rota alınamadı')
+      throw e
+    }
+  }
+
+  function handleClearRoute() {
+    clearRoutes()
+    setStatus('Rota temizlendi')
+  }
+
+  async function handleCalcDistance(v1, v2) {
+    if (!v1 || !v2) { setDistResult({ km: '—', label: 'İki konum girin' }); return }
+    setDistResult({ km: '...', label: 'Hesaplanıyor' })
+    try {
+      const [c1, c2] = await Promise.all([geocode(v1), geocode(v2)])
+      if (!c1) { setDistResult({ km: '!', label: `"${v1}" bulunamadı` }); return }
+      if (!c2) { setDistResult({ km: '!', label: `"${v2}" bulunamadı` }); return }
+      const d = haversine(c1, c2)
+      setDistResult({ km: d.toFixed(1), label: `${v1} → ${v2}` })
+      setGeoJsonLine(MEASURE_SOURCE_ID, [c1, c2])
+      ;[c1, c2].forEach((c, i) => {
+        const pin = addPin(c[0], c[1], i === 0 ? v1 : v2)
+        pin._isDist = true
+      })
+      fitBounds([c1, c2])
+      setStatus(`${d.toFixed(1)} km — ${v1} ile ${v2} arası`)
+    } catch {
+      setDistResult({ km: '!', label: 'Bağlantı hatası' })
+    }
+  }
+
+  function handleClearAll() {
+    clearPins()
+    clearRoutes()
+    drawCoordsRef.current = []
+    measurePointsRef.current = []
+    measureMarkersRef.current.forEach((mk) => mk.remove())
+    measureMarkersRef.current = []
+    clearGeoJson(DRAW_SOURCE_ID)
+    clearGeoJson(MEASURE_SOURCE_ID)
+    setDistResult(null)
+    setContextMenu(null)
+    clearProfile()
+    clearPoi()
+    setStatus('Harita temizlendi')
+  }
+
+  function handleContextMenu(e) {
+    e.preventDefault?.()
+    setContextMenu({ x: e.point?.x ?? e.clientX, y: e.point?.y ?? e.clientY, lng: e.lngLat.lng, lat: e.lngLat.lat })
+  }
+
+  async function handleWeatherRequest() {
+    if (weather || weatherLoading) { clearWeather(); return }
+    // Haritanın merkez koordinatını al
+    const map = mapRef.current
+    if (!map) return
+    const center = map.getCenter()
+    setStatus('Hava durumu alınıyor...')
+    // Reverse geocode ile konum adı bul
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${center.lat}&lon=${center.lng}&format=json`,
+        { headers: { 'Accept-Language': 'tr' } }
+      )
+      const data = await res.json()
+      const name = data.address?.city || data.address?.town || data.address?.county || data.display_name?.split(',')[0]
+      await fetchWeather(center.lat, center.lng, name)
+      setStatus('Hava durumu güncellendi')
+    } catch {
+      await fetchWeather(center.lat, center.lng)
+      setStatus('Hava durumu güncellendi')
+    }
+  }
+
+  function handlePoiSearch(category) {
+    const map = mapRef.current
+    if (!map) return
+    const { lat, lng } = map.getCenter()
+    searchPoi(category, lat, lng)
+    setStatus(`${category.label} aranıyor…`)
+  }
+
+  function handleCoordGo(lng, lat) {
+    flyTo([lng, lat], 14, 1000)
+    addPin(lng, lat, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+    setStatus(`${lat.toFixed(5)}, ${lng.toFixed(5)} konumuna gidildi`)
+  }
+
+  function handleLocate() {
+    if (!navigator.geolocation) { setStatus('Konum servisi desteklenmiyor'); return }
+    setStatus('Konum alınıyor...')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { longitude: lng, latitude: lat } = pos.coords
+        flyTo([lng, lat], 13)
+        addPin(lng, lat, 'Benim Konum')
+        setStatus('Konumunuz bulundu ve eklendi')
+      },
+      () => setStatus('Konum alınamadı — izin vermeniz gerekiyor')
+    )
+  }
+
+  function handleMobileTab(tabId) {
+    if (tabId === null) {
+      setMobileOpen(false)
+      setActiveMobileTab(null)
+    } else {
+      setMobileOpen((prev) => activeMobileTab === tabId ? !prev : true)
+      setActiveMobileTab(tabId)
+    }
+  }
+
+  function handlePinClick(pin) {
+    flyTo([pin.lng, pin.lat], 13, 800)
+    pin.marker.togglePopup()
+  }
+
+  return (
+    <div className={styles.app}>
+      <Sidebar
+        mode={mode}
+        onModeChange={setMode}
+        currentStyle={currentStyle}
+        onStyleChange={handleStyleChange}
+        pins={pins}
+        onPinClick={handlePinClick}
+        onPinDelete={removePin}
+        onCalcDistance={handleCalcDistance}
+        distResult={distResult}
+        onGetRoute={handleGetRoute}
+        onClearRoute={handleClearRoute}
+        onSelectRoute={selectRoute}
+        isOpen={mobileOpen}
+        onMobileTabChange={handleMobileTab}
+        activeMobileTab={activeMobileTab}
+        poiList={poiList}
+        poiLoading={poiLoading}
+        poiError={poiError}
+        poiActiveCategory={poiActiveCategory}
+        onPoiSearch={handlePoiSearch}
+        onPoiClear={clearPoi}
+        onPoiItemClick={(item) => { flyTo([item.lng, item.lat], 17, 900); focusPoi(item) }}
+        customLayers={customLayers}
+        onLayerAdd={addLayer}
+        onLayerRemove={removeLayer}
+        onLayerToggle={toggleLayer}
+        onLayerColorChange={changeLayerColor}
+      />
+      <div className={styles.mapWrap}>
+        <div ref={containerRef} className={styles.map} />
+        <MapControls
+          onLocate={handleLocate}
+          onFlyToTurkey={() => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") }}
+          onClearAll={handleClearAll}
+          status={status}
+          tipText={MODE_TIPS[mode]}
+          mapRef={mapRef}
+          currentStyle={currentStyle}
+          weather={weather}
+          weatherLoading={weatherLoading}
+          weatherError={weatherError}
+          onWeatherRequest={handleWeatherRequest}
+          onWeatherClose={clearWeather}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onCoordGo={handleCoordGo}
+          onSearchSelect={({ lon, lat, name }) => {
+            const doFly = () => {
+              flyTo([lon, lat], 13, 1000)
+              addPin(lon, lat, name)
+              setStatus(`${name} konumuna gidildi`)
+            }
+            if (mapRef.current?.isStyleLoaded()) doFly()
+            else mapRef.current?.once('load', doFly)
+          }}
+        />
+      <ElevationChart
+        profile={profile}
+        loading={elevLoading}
+        error={elevError}
+        onClose={clearProfile}
+      />
+      {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            lat={contextMenu.lat}
+            lng={contextMenu.lng}
+            onClose={() => setContextMenu(null)}
+            onCopyCoords={(lat, lng) => {
+              navigator.clipboard?.writeText(`${lat.toFixed(6)}, ${lng.toFixed(6)}`)
+              setStatus(`Kopyalandı: ${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+            }}
+            onAddPin={(lng, lat) => addPin(lng, lat)}
+            onWeather={async (lat, lon) => {
+              setStatus('Hava durumu alınıyor...')
+              await fetchWeather(lat, lon)
+              setStatus('Hava durumu güncellendi')
+            }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

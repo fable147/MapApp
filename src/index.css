@@ -1,0 +1,90 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── DARK tema (varsayılan) ── */
+:root {
+  --bg: #0e1117;
+  --panel: #161b27;
+  --card: #1d2235;
+  --hover: #252a3d;
+  --active: #2d3350;
+  --accent: #4d8ef5;
+  --accent2: #34d9a0;
+  --accent3: #f5834d;
+  --danger: #f55f5f;
+  --t1: #dde2f0;
+  --t2: #6b7499;
+  --t3: #3a4060;
+  --bd: rgba(255, 255, 255, 0.07);
+  --bda: rgba(77, 142, 245, 0.35);
+  --r: 8px; --r2: 12px; --r3: 16px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ── LIGHT tema ── */
+:root.light {
+  --bg: #f0f2f7;
+  --panel: #ffffff;
+  --card: #f5f7fc;
+  --hover: #eaecf5;
+  --active: #dde3f8;
+  --accent: #2563eb;
+  --accent2: #0f9e6a;
+  --accent3: #e05a20;
+  --danger: #dc2626;
+  --t1: #111827;
+  --t2: #6b7280;
+  --t3: #9ca3af;
+  --bd: rgba(0, 0, 0, 0.08);
+  --bda: rgba(37, 99, 235, 0.35);
+}
+
+html, body, #root {
+  height: 100%; height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--t1);
+  transition: background 0.25s, color 0.25s;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bd); border-radius: 99px; }
+
+/* MapLibre overrides */
+.maplibregl-ctrl-group {
+  background: var(--panel) !important;
+  border: 1px solid var(--bd) !important;
+  border-radius: var(--r) !important;
+}
+.maplibregl-ctrl-group button { filter: invert(0.7) !important; }
+:root.light .maplibregl-ctrl-group button { filter: invert(0.2) !important; }
+.maplibregl-ctrl-attrib { display: none !important; }
+.maplibregl-ctrl-scale {
+  background: var(--panel) !important;
+  border-color: var(--t3) !important;
+  color: var(--t2) !important;
+  font-size: 10px !important;
+  padding: 2px 7px !important;
+  border-radius: 99px !important;
+}
+.maplibregl-popup-content {
+  background: var(--panel) !important;
+  color: var(--t1) !important;
+  border: 1px solid var(--bd) !important;
+  border-radius: var(--r2) !important;
+  padding: 10px 14px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  min-width: 140px;
+}
+.maplibregl-popup-tip { border-top-color: var(--panel) !important; }
+.maplibregl-popup-close-button { color: var(--t2) !important; font-size: 16px !important; }
+
+@media (max-width: 768px) {
+  html, body, #root { height: 100dvh; }
+}

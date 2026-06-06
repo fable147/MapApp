@@ -1,0 +1,22 @@
+.box {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  z-index: 10;
+}
+
+/* Dropdown'un haritanın üstüne çıkması için */
+.box :global(.wrap) {
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.6));
+}
+
+@media (max-width: 768px) {
+  .box {
+    width: calc(100% - 70px);
+    left: 58px;
+    transform: none;
+    top: 10px;
+  }
+}
