@@ -48,6 +48,19 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
 
   function handleSelect(idx) { setSelected(idx); onSelectRoute(idx); setShowSteps(false) }
 
+  function handleUseLocation() {
+    if (!navigator.geolocation) { setError('Konum servisi desteklenmiyor'); return }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const { longitude: lon, latitude: lat } = coords
+        setOriginCoord({ lon, lat, name: 'Konumunuz' })
+        setOrigin('Konumunuz')
+        setError('')
+      },
+      () => setError('Konum alınamadı — izin vermeniz gerekiyor')
+    )
+  }
+
   function handleClear() {
     setOrigin(''); setDest('')
     setOriginCoord(null); setDestCoord(null)
@@ -90,6 +103,14 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
               onSelect={(r) => { setOriginCoord(r); setOrigin(r.name) }}
             />
           </div>
+          <button
+            className={styles.locBtn}
+            onClick={handleUseLocation}
+            title="Konumumu kullan"
+            aria-label="Konumumu kullan"
+          >
+            <i className="ti ti-current-location" />
+          </button>
         </div>
 
         <button className={styles.swapBtn} onClick={handleSwap} aria-label="Ters çevir">

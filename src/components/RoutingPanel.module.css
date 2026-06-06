@@ -22,6 +22,12 @@
   font-size: 10px; font-weight: 700; color: white; flex-shrink: 0;
 }
 .inputWrap { flex: 1; min-width: 0; }
+.locBtn {
+  background: var(--card); border: 1px solid var(--bd); border-radius: var(--r);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--accent); font-size: 14px; transition: all 0.14s; flex-shrink: 0;
+}
+.locBtn:hover { background: var(--active); }
 .swapBtn {
   align-self: center; margin: 4px 0 4px auto;
   background: var(--card); border: 1px solid var(--bd); border-radius: var(--r);

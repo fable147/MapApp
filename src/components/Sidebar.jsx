@@ -6,18 +6,21 @@ import AutocompleteInput from './AutocompleteInput'
 import RoutingPanel from './RoutingPanel'
 import PoiPanel from './PoiPanel'
 import LayerPanel from './LayerPanel'
+import HotelPanel from './HotelPanel'
 
 const TOOLS = [
   { id: 'pan',     icon: 'ti-hand-move',    label: 'Gezin' },
   { id: 'pin',     icon: 'ti-map-pin',       label: 'Pin Koy' },
   { id: 'draw',    icon: 'ti-pencil',         label: 'Çiz' },
   { id: 'measure', icon: 'ti-ruler-measure',  label: 'Ölç' },
+  { id: 'polygon', icon: 'ti-polygon',        label: 'Alan' },
 ]
 
 const TABS = [
   { id: 'map',    icon: 'ti-layers',         label: 'Harita' },
   { id: 'nav',    icon: 'ti-route',          label: 'Navigasyon' },
   { id: 'poi',    icon: 'ti-radar',          label: 'Yakın' },
+  { id: 'hotels', icon: 'ti-bed',            label: 'Oteller' },
   { id: 'layers', icon: 'ti-stack-2',        label: 'Katmanlar' },
 ]
 
@@ -39,6 +42,8 @@ export default function Sidebar({
   poiList, poiLoading, poiError, poiActiveCategory,
   onPoiSearch, onPoiClear, onPoiItemClick,
   customLayers, onLayerAdd, onLayerRemove, onLayerToggle, onLayerColorChange,
+  hotels, hotelLoading, hotelError,
+  onHotelSearch, onHotelClear, onHotelItemClick, onHotelRouteToHotel,
 }) {
   const [tab, setTab]   = useState('map')
   const [loc1, setLoc1] = useState('')
@@ -170,6 +175,19 @@ export default function Sidebar({
             loading={poiLoading}
             error={poiError}
             activeCategory={poiActiveCategory}
+          />
+        )}
+
+        {/* Oteller sekmesi */}
+        {tab === 'hotels' && (
+          <HotelPanel
+            hotels={hotels}
+            loading={hotelLoading}
+            error={hotelError}
+            onSearch={onHotelSearch}
+            onClear={onHotelClear}
+            onItemClick={onHotelItemClick}
+            onRouteToHotel={onHotelRouteToHotel}
           />
         )}
 

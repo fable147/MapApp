@@ -14,6 +14,7 @@ export default function MapControls({
   onWeatherRequest, onWeatherClose,
   theme, onToggleTheme,
   onCoordGo,
+  terrainOn, onToggleTerrain,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
@@ -54,6 +55,14 @@ export default function MapControls({
         </button>
         <button className={styles.btn} onClick={onToggleTheme} title="Tema değiştir" aria-label="Tema değiştir">
           <i className={`ti ${theme === 'dark' ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" />
+        </button>
+        <button
+          className={`${styles.btn} ${terrainOn ? styles.btnActive : ''}`}
+          onClick={onToggleTerrain}
+          title="3D Arazi"
+          aria-label="3D Arazi"
+        >
+          <i className="ti ti-mountain" aria-hidden="true" />
         </button>
         <button
           className={`${styles.btn} ${(weather || weatherLoading) ? styles.btnActive : ''}`}

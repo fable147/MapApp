@@ -6,12 +6,13 @@ import { useWeather } from './hooks/useWeather'
 import { useTheme } from './hooks/useTheme'
 import { useElevation } from './hooks/useElevation'
 import { usePoi } from './hooks/usePoi'
-import { useLayerManager } from './hooks/useLayerManager'
+import { useLayerManager, getGeoJsonBounds } from './hooks/useLayerManager'
+import { useHotels } from './hooks/useHotels'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
-import { haversine, geocode } from './utils/geo'
+import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
 import {
-  DRAW_SOURCE_ID, MEASURE_SOURCE_ID,
+  DRAW_SOURCE_ID, MEASURE_SOURCE_ID, POLYGON_SOURCE_ID,
   TURKEY_CENTER, TURKEY_ZOOM,
 } from './utils/constants'
 import Sidebar from './components/Sidebar'
@@ -23,6 +24,7 @@ const MODE_TIPS = {
   pin:     'Pin Koy modu — tıklayın',
   draw:    'Çizim modu — çift tıkla bitir',
   measure: 'Ölçüm modu — 2 noktaya tıkla',
+  polygon: 'Alan Çiz modu — çift tıkla kapat',
 }
 
 const MODE_STATUS = {
@@ -30,6 +32,7 @@ const MODE_STATUS = {
   pin:     'Haritada istediğiniz yere tıklayarak pin ekleyin',
   draw:    'Tıklayarak çizgi noktaları ekleyin • Çift tıklayarak tamamlayın',
   measure: 'İki noktaya tıklayarak aralarındaki mesafeyi ölçün',
+  polygon: 'Tıklayarak köşe noktaları ekleyin • Çift tıklayarak alanı kapatın',
 }
 
 export default function App() {
@@ -45,6 +48,8 @@ export default function App() {
   const drawCoordsRef    = useRef([])
   const measurePointsRef = useRef([])
   const measureMarkersRef = useRef([])
+  const polyRef          = useRef([])
+  const areaMarkerRef    = useRef(null)
 
   // map click — modeRef üzerinden okur, stale closure yok
   const handleMapClick = useCallback((e) => {
@@ -56,6 +61,17 @@ export default function App() {
       drawCoordsRef.current = [...drawCoordsRef.current, [lng, lat]]
       setGeoJsonLineRef.current?.(DRAW_SOURCE_ID, drawCoordsRef.current)
       setStatus(`Çizim: ${drawCoordsRef.current.length} nokta — çift tıklayarak bitir`)
+    } else if (m === 'polygon') {
+      polyRef.current = [...polyRef.current, [lng, lat]]
+      const pts = polyRef.current
+      if (pts.length === 1) {
+        clearGeoJsonRef.current?.(POLYGON_SOURCE_ID)
+        if (areaMarkerRef.current) { areaMarkerRef.current.remove(); areaMarkerRef.current = null }
+      }
+      if (pts.length >= 3) {
+        setGeoJsonPolygonRef.current?.(POLYGON_SOURCE_ID, [...pts, pts[0]])
+      }
+      setStatus(`Alan: ${pts.length} köşe eklendi — çift tıklayarak kapat`)
     } else if (m === 'measure') {
       measurePointsRef.current = [...measurePointsRef.current, [lng, lat]]
       addMeasureMarkerLocal(lng, lat, measurePointsRef.current.length)
@@ -76,12 +92,16 @@ export default function App() {
   }, [])
 
   // Ref köprüleri — hook'lar henüz tanımlı değilken callback yakalanmasın
-  const addPinRef        = useRef(null)
-  const setGeoJsonLineRef = useRef(null)
-  const clearGeoJsonRef  = useRef(null)
+  const addPinRef            = useRef(null)
+  const setGeoJsonLineRef    = useRef(null)
+  const clearGeoJsonRef      = useRef(null)
+  const setGeoJsonPolygonRef = useRef(null)
 
-  const { mapRef, setGeoJsonLine, clearGeoJson, flyTo, fitBounds, changeStyle, setCursor } =
-    useMap(containerRef, handleMapClick)
+  const {
+    mapRef, setGeoJsonLine, setGeoJsonPolygon, clearGeoJson,
+    flyTo, fitBounds, changeStyle, setCursor,
+    terrainOn, toggleTerrain,
+  } = useMap(containerRef, handleMapClick)
 
   const { pins, addPin, removePin, clearPins } = usePins(mapRef)
   const { getRoute, selectRoute, clearRoutes, reinitLayers } = useRouting(mapRef)
@@ -92,14 +112,17 @@ export default function App() {
           searchPoi, focusPoi, clearPoi } = usePoi(mapRef)
   const { layers: customLayers, addLayer, removeLayer, toggleLayer, changeColor: changeLayerColor,
           reinitLayers: reinitCustomLayers } = useLayerManager(mapRef)
+  const { hotels, loading: hotelLoading, error: hotelError,
+          searchHotels, clearHotels, focusHotel } = useHotels(mapRef)
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
 
   // Ref'leri güncelle
-  useEffect(() => { addPinRef.current = addPin },        [addPin])
-  useEffect(() => { setGeoJsonLineRef.current = setGeoJsonLine }, [setGeoJsonLine])
-  useEffect(() => { clearGeoJsonRef.current = clearGeoJson },     [clearGeoJson])
+  useEffect(() => { addPinRef.current = addPin },                          [addPin])
+  useEffect(() => { setGeoJsonLineRef.current = setGeoJsonLine },          [setGeoJsonLine])
+  useEffect(() => { clearGeoJsonRef.current = clearGeoJson },              [clearGeoJson])
+  useEffect(() => { setGeoJsonPolygonRef.current = setGeoJsonPolygon },    [setGeoJsonPolygon])
 
   function addMeasureMarkerLocal(lng, lat, n) {
     if (!mapRef.current) return
@@ -123,6 +146,26 @@ export default function App() {
         drawCoordsRef.current = []
         setTimeout(() => clearGeoJson(DRAW_SOURCE_ID), 100)
         fetchProfileRef.current?.(completed)
+      } else if (modeRef.current === 'polygon' && polyRef.current.length >= 3) {
+        e.preventDefault()
+        const pts = [...polyRef.current]
+        polyRef.current = []
+        const area  = polygonAreaM2(pts)
+        const label = formatArea(area)
+        const center = polygonCentroid(pts)
+        setGeoJsonPolygon(POLYGON_SOURCE_ID, [...pts, pts[0]])
+        if (areaMarkerRef.current) { areaMarkerRef.current.remove(); areaMarkerRef.current = null }
+        const mgl = window.maplibregl
+        const el  = document.createElement('div')
+        el.style.cssText =
+          'background:rgba(245,131,77,0.92);color:#fff;padding:4px 10px;border-radius:6px;' +
+          'font-size:13px;font-weight:700;white-space:nowrap;' +
+          'border:1.5px solid rgba(255,255,255,0.4);box-shadow:0 2px 8px rgba(0,0,0,.35);'
+        el.textContent = label
+        areaMarkerRef.current = new mgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(center)
+          .addTo(mapRef.current)
+        setStatus(`Alan: ${label}`)
       }
     }
     map.on('dblclick', handleDblClick)
@@ -141,6 +184,7 @@ export default function App() {
     measurePointsRef.current = []
     measureMarkersRef.current.forEach((mk) => mk.remove())
     measureMarkersRef.current = []
+    polyRef.current = []
     setStatus(MODE_STATUS[m])
   }
 
@@ -198,10 +242,14 @@ export default function App() {
     measureMarkersRef.current = []
     clearGeoJson(DRAW_SOURCE_ID)
     clearGeoJson(MEASURE_SOURCE_ID)
+    polyRef.current = []
+    if (areaMarkerRef.current) { areaMarkerRef.current.remove(); areaMarkerRef.current = null }
+    clearGeoJson(POLYGON_SOURCE_ID)
     setDistResult(null)
     setContextMenu(null)
     clearProfile()
     clearPoi()
+    clearHotels()
     setStatus('Harita temizlendi')
   }
 
@@ -233,12 +281,46 @@ export default function App() {
     }
   }
 
+  function handleLayerAdd(name, geojson) {
+    addLayer(name, geojson)
+    const bounds = getGeoJsonBounds(geojson)
+    if (bounds) fitBounds(bounds, 60)
+    setStatus(`"${name}" katmanı eklendi`)
+  }
+
   function handlePoiSearch(category) {
     const map = mapRef.current
     if (!map) return
     const { lat, lng } = map.getCenter()
     searchPoi(category, lat, lng)
     setStatus(`${category.label} aranıyor…`)
+  }
+
+  function handleHotelSearch() {
+    const map = mapRef.current
+    if (!map) return
+    const { lat, lng } = map.getCenter()
+    searchHotels(lat, lng)
+    setStatus('Yakındaki oteller aranıyor…')
+  }
+
+  function handleRouteToHotel(hotel) {
+    if (!navigator.geolocation) { setStatus('Konum servisi desteklenmiyor'); return }
+    setStatus('Konum alınıyor…')
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        const { longitude: lng, latitude: lat } = coords
+        setStatus('Rota hesaplanıyor…')
+        try {
+          const routes = await getRoute([lng, lat], [hotel.lng, hotel.lat])
+          if (routes) setStatus(`${hotel.name} · ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
+          else setStatus('Rota bulunamadı')
+        } catch {
+          setStatus('Rota alınamadı')
+        }
+      },
+      () => setStatus('Konum alınamadı — izin vermeniz gerekiyor')
+    )
   }
 
   function handleCoordGo(lng, lat) {
@@ -302,10 +384,17 @@ export default function App() {
         onPoiClear={clearPoi}
         onPoiItemClick={(item) => { flyTo([item.lng, item.lat], 17, 900); focusPoi(item) }}
         customLayers={customLayers}
-        onLayerAdd={addLayer}
+        onLayerAdd={handleLayerAdd}
         onLayerRemove={removeLayer}
         onLayerToggle={toggleLayer}
         onLayerColorChange={changeLayerColor}
+        hotels={hotels}
+        hotelLoading={hotelLoading}
+        hotelError={hotelError}
+        onHotelSearch={handleHotelSearch}
+        onHotelClear={clearHotels}
+        onHotelItemClick={(h) => { flyTo([h.lng, h.lat], 16, 900); focusHotel(h) }}
+        onHotelRouteToHotel={handleRouteToHotel}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
@@ -325,6 +414,8 @@ export default function App() {
           theme={theme}
           onToggleTheme={toggleTheme}
           onCoordGo={handleCoordGo}
+          terrainOn={terrainOn}
+          onToggleTerrain={toggleTerrain}
           onSearchSelect={({ lon, lat, name }) => {
             const doFly = () => {
               flyTo([lon, lat], 13, 1000)

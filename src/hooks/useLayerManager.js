@@ -14,52 +14,62 @@ function getGeomTypes(geojson) {
   return types
 }
 
+function doAddToMap(map, layer) {
+  try {
+    if (!map.getSource(layer.id)) {
+      map.addSource(layer.id, { type: 'geojson', data: layer.geojson })
+    }
+
+    const vis   = layer.visible ? 'visible' : 'none'
+    const types = getGeomTypes(layer.geojson)
+
+    if ((types.has('Point') || types.has('MultiPoint')) && !map.getLayer(`${layer.id}-pt`)) {
+      map.addLayer({
+        id: `${layer.id}-pt`, type: 'circle', source: layer.id,
+        filter: ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false],
+        paint: { 'circle-color': layer.color, 'circle-radius': 6,
+                 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 },
+        layout: { visibility: vis },
+      })
+    }
+
+    if ((types.has('LineString') || types.has('MultiLineString')) && !map.getLayer(`${layer.id}-ln`)) {
+      map.addLayer({
+        id: `${layer.id}-ln`, type: 'line', source: layer.id,
+        filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false],
+        paint: { 'line-color': layer.color, 'line-width': 2.5 },
+        layout: { visibility: vis },
+      })
+    }
+
+    if (types.has('Polygon') || types.has('MultiPolygon')) {
+      if (!map.getLayer(`${layer.id}-fill`)) {
+        map.addLayer({
+          id: `${layer.id}-fill`, type: 'fill', source: layer.id,
+          filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
+          paint: { 'fill-color': layer.color, 'fill-opacity': 0.3 },
+          layout: { visibility: vis },
+        })
+      }
+      if (!map.getLayer(`${layer.id}-ol`)) {
+        map.addLayer({
+          id: `${layer.id}-ol`, type: 'line', source: layer.id,
+          filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
+          paint: { 'line-color': layer.color, 'line-width': 1.5 },
+          layout: { visibility: vis },
+        })
+      }
+    }
+  } catch (err) {
+    console.warn('[LayerManager] Layer eklenemedi:', err.message)
+  }
+}
+
 function applyToMap(map, layer) {
-  if (!map.isStyleLoaded()) return
-
-  if (!map.getSource(layer.id)) {
-    map.addSource(layer.id, { type: 'geojson', data: layer.geojson })
-  }
-
-  const vis   = layer.visible ? 'visible' : 'none'
-  const types = getGeomTypes(layer.geojson)
-
-  if ((types.has('Point') || types.has('MultiPoint')) && !map.getLayer(`${layer.id}-pt`)) {
-    map.addLayer({
-      id: `${layer.id}-pt`, type: 'circle', source: layer.id,
-      filter: ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false],
-      paint: { 'circle-color': layer.color, 'circle-radius': 5,
-               'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5 },
-      layout: { visibility: vis },
-    })
-  }
-
-  if ((types.has('LineString') || types.has('MultiLineString')) && !map.getLayer(`${layer.id}-ln`)) {
-    map.addLayer({
-      id: `${layer.id}-ln`, type: 'line', source: layer.id,
-      filter: ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false],
-      paint: { 'line-color': layer.color, 'line-width': 2.5 },
-      layout: { visibility: vis },
-    })
-  }
-
-  if ((types.has('Polygon') || types.has('MultiPolygon'))) {
-    if (!map.getLayer(`${layer.id}-fill`)) {
-      map.addLayer({
-        id: `${layer.id}-fill`, type: 'fill', source: layer.id,
-        filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
-        paint: { 'fill-color': layer.color, 'fill-opacity': 0.25 },
-        layout: { visibility: vis },
-      })
-    }
-    if (!map.getLayer(`${layer.id}-ol`)) {
-      map.addLayer({
-        id: `${layer.id}-ol`, type: 'line', source: layer.id,
-        filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false],
-        paint: { 'line-color': layer.color, 'line-width': 1.5 },
-        layout: { visibility: vis },
-      })
-    }
+  if (map.isStyleLoaded()) {
+    doAddToMap(map, layer)
+  } else {
+    map.once('styledata', () => doAddToMap(map, layer))
   }
 }
 
@@ -120,6 +130,19 @@ export function useLayerManager(mapRef) {
 }
 
 export { LAYER_COLORS }
+
+export function getGeoJsonBounds(geojson) {
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
+  function walk(c) {
+    if (typeof c[0] === 'number') {
+      minLng = Math.min(minLng, c[0]); maxLng = Math.max(maxLng, c[0])
+      minLat = Math.min(minLat, c[1]); maxLat = Math.max(maxLat, c[1])
+    } else { c.forEach(walk) }
+  }
+  const features = geojson.features ?? [geojson]
+  features.forEach((f) => f?.geometry?.coordinates && walk(f.geometry.coordinates))
+  return isFinite(minLng) ? [[minLng, minLat], [maxLng, maxLat]] : null
+}
 
 export function readGeoJsonFile(file) {
   return new Promise((resolve, reject) => {
