@@ -1,44 +1,42 @@
 import { useState, useCallback, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 
+const GEO_KEY = import.meta.env.VITE_GEOAPIFY_KEY ?? ''
+const GEO_URL = 'https://api.geoapify.com/v2/places'
+const RADIUS  = 2000
+
 export const POI_CATEGORIES = [
-  { id: 'hospital',    label: 'Hastane',    icon: 'ti-building-hospital', color: '#f55f5f', tag: '"amenity"="hospital"' },
-  { id: 'pharmacy',   label: 'Eczane',     icon: 'ti-pill',              color: '#34d9a0', tag: '"amenity"="pharmacy"' },
-  { id: 'cafe',       label: 'Kafe',        icon: 'ti-coffee',            color: '#f5834d', tag: '"amenity"="cafe"' },
-  { id: 'restaurant', label: 'Restoran',    icon: 'ti-tools-kitchen-2',   color: '#f5d94d', tag: '"amenity"="restaurant"' },
-  { id: 'atm',        label: 'ATM',         icon: 'ti-building-bank',     color: '#4d8ef5', tag: '"amenity"="atm"' },
-  { id: 'fuel',       label: 'Benzin',      icon: 'ti-gas-station',       color: '#c97cf5', tag: '"amenity"="fuel"' },
-  { id: 'supermarket',label: 'Market',      icon: 'ti-shopping-cart',     color: '#5ff5c4', tag: '"shop"="supermarket"' },
-  { id: 'hotel',      label: 'Otel',        icon: 'ti-bed',               color: '#f55f9a', tag: '"tourism"="hotel"' },
-  { id: 'park',       label: 'Park',        icon: 'ti-trees',             color: '#80ed99', tag: '"leisure"="park"' },
-  { id: 'school',     label: 'Okul',        icon: 'ti-school',            color: '#a0c4ff', tag: '"amenity"="school"' },
+  { id: 'hospital',    label: 'Hastane',  icon: 'ti-building-hospital', color: '#f55f5f', geo: 'healthcare.hospital' },
+  { id: 'pharmacy',    label: 'Eczane',   icon: 'ti-pill',              color: '#34d9a0', geo: 'healthcare.pharmacy' },
+  { id: 'cafe',        label: 'Kafe',     icon: 'ti-coffee',            color: '#f5834d', geo: 'catering.cafe' },
+  { id: 'restaurant',  label: 'Restoran', icon: 'ti-tools-kitchen-2',   color: '#f5d94d', geo: 'catering.restaurant' },
+  { id: 'atm',         label: 'ATM',      icon: 'ti-building-bank',     color: '#4d8ef5', geo: 'service.financial.atm' },
+  { id: 'fuel',        label: 'Benzin',   icon: 'ti-gas-station',       color: '#c97cf5', geo: 'service.vehicle.fuel' },
+  { id: 'supermarket', label: 'Market',   icon: 'ti-shopping-cart',     color: '#5ff5c4', geo: 'commercial.supermarket' },
+  { id: 'hotel',       label: 'Otel',     icon: 'ti-bed',               color: '#f55f9a', geo: 'accommodation.hotel' },
+  { id: 'park',        label: 'Park',     icon: 'ti-trees',             color: '#80ed99', geo: 'leisure.park' },
+  { id: 'school',      label: 'Okul',     icon: 'ti-school',            color: '#a0c4ff', geo: 'education.school' },
 ]
 
-const RADIUS = 1500
-const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-]
-
-async function overpassGet(query) {
-  const encoded = encodeURIComponent(query)
-  for (const base of OVERPASS_MIRRORS) {
-    try {
-      const res = await fetch(`${base}?data=${encoded}`, {
-        signal: AbortSignal.timeout(12000),
-      })
-      if (res.ok) return res.json()
-    } catch { /* try next mirror */ }
+function parseFeature(f) {
+  const p = f.properties ?? {}
+  if (!p.name) return null
+  return {
+    id:       p.place_id ?? `${p.lat}-${p.lon}`,
+    lat:      p.lat,
+    lng:      p.lon,
+    name:     p.name,
+    address:  p.formatted ?? '',
+    distance: Math.round(p.distance ?? 0),
   }
-  throw new Error('Overpass API ulaşılamıyor')
 }
 
 export function usePoi(mapRef) {
-  const [poiList,       setPoiList]       = useState([])
-  const [loading,       setLoading]       = useState(false)
-  const [error,         setError]         = useState(null)
+  const [poiList,        setPoiList]        = useState([])
+  const [loading,        setLoading]        = useState(false)
+  const [error,          setError]          = useState(null)
   const [activeCategory, setActiveCategory] = useState(null)
-  const markersRef = useRef({}) // id → marker
+  const markersRef = useRef({})
 
   function clearMarkers() {
     Object.values(markersRef.current).forEach((m) => m.remove())
@@ -53,20 +51,20 @@ export function usePoi(mapRef) {
     setPoiList([])
 
     try {
-      const query = `[out:json][timeout:20];(node[${category.tag}](around:${RADIUS},${lat},${lng});way[${category.tag}](around:${RADIUS},${lat},${lng}););out center;`
-      const data = await overpassGet(query)
-
-      const items = data.elements
-        .map((el) => ({
-          id:      el.id,
-          lat:     el.lat  ?? el.center?.lat,
-          lng:     el.lon  ?? el.center?.lon,
-          name:    el.tags?.name || el.tags?.['name:tr'] || category.label,
-          address: [el.tags?.['addr:street'], el.tags?.['addr:housenumber']]
-            .filter(Boolean).join(' '),
-        }))
-        .filter((el) => el.lat && el.lng)
-        .slice(0, 50)
+      const params = new URLSearchParams({
+        categories: category.geo,
+        filter:     `circle:${lng},${lat},${RADIUS}`,
+        bias:       `proximity:${lng},${lat}`,
+        limit:      25,
+        apiKey:     GEO_KEY,
+      })
+      const res = await fetch(`${GEO_URL}?${params}`)
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.message ?? `HTTP ${res.status}`)
+      }
+      const data  = await res.json()
+      const items = (data.features ?? []).map(parseFeature).filter(Boolean)
 
       const map = mapRef.current
       if (map) {
@@ -87,7 +85,9 @@ export function usePoi(mapRef) {
           const popup = new maplibregl.Popup({ offset: 15, closeButton: false })
             .setHTML(
               `<strong style="font-size:13px">${item.name}</strong>` +
-              (item.address ? `<div style="font-size:11px;color:var(--t2);margin-top:3px">${item.address}</div>` : '')
+              (item.address
+                ? `<div style="font-size:11px;color:var(--t2);margin-top:3px">${item.address}</div>`
+                : '')
             )
 
           const marker = new maplibregl.Marker({ element: el })
@@ -101,8 +101,8 @@ export function usePoi(mapRef) {
 
       setPoiList(items)
       if (items.length === 0) setError('Bu alanda sonuç bulunamadı')
-    } catch {
-      setError('Veri alınamadı — bağlantıyı kontrol edin')
+    } catch (err) {
+      setError(`Veri alınamadı: ${err.message}`)
     } finally {
       setLoading(false)
     }
