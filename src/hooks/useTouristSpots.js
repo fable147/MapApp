@@ -19,6 +19,45 @@ function distLabel(m) {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`
 }
 
+async function fetchWikipedia(name) {
+  const encoded = encodeURIComponent(name)
+  for (const lang of ['tr', 'en']) {
+    try {
+      const res = await fetch(
+        `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
+        { signal: AbortSignal.timeout(6000) }
+      )
+      if (!res.ok) continue
+      const data = await res.json()
+      if (!data.extract || data.type === 'disambiguation') continue
+
+      const extract = data.extract.length > 320
+        ? data.extract.slice(0, 320) + '…'
+        : data.extract
+
+      const imgHtml = data.thumbnail?.source
+        ? `<img src="${data.thumbnail.source}" alt="${name}"
+             style="width:100%;border-radius:5px;margin-bottom:7px;display:block;max-height:140px;object-fit:cover">`
+        : ''
+
+      const pageUrl  = data.content_urls?.desktop?.page ?? ''
+      const langNote = lang === 'en' ? ' (EN)' : ''
+
+      return `
+        ${imgHtml}
+        <div style="font-size:11px;line-height:1.55;color:#bbb;margin-bottom:${pageUrl ? 6 : 0}px">${extract}</div>
+        ${pageUrl
+          ? `<a href="${pageUrl}" target="_blank" rel="noopener"
+               style="font-size:11px;color:#4d8ef5;text-decoration:none">Wikipedia'da oku${langNote} →</a>`
+          : ''}
+      `
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
 function parseFeature(f, category) {
   const p   = f.properties ?? {}
   const raw = p.datasource?.raw ?? {}
@@ -88,14 +127,28 @@ export function useTouristSpots(mapRef) {
           const openingHtml = s.opening ? `<div style="font-size:11px;color:#888;margin-top:2px">🕒 ${s.opening}</div>` : ''
           const websiteHtml = s.website ? `<a href="${s.website}" target="_blank" rel="noopener" style="font-size:11px;color:#4d8ef5;display:block;margin-top:4px">🌐 Web sitesi</a>` : ''
 
-          const popup = new mgl.Popup({ offset: 16, maxWidth: '260px' }).setHTML(`
-            <div style="font-family:sans-serif;padding:2px 0;line-height:1.6">
+          const popup = new mgl.Popup({ offset: 16, maxWidth: '290px' })
+          popup.setHTML(`
+            <div style="font-family:sans-serif;padding:2px 0;line-height:1.6;width:260px">
               <strong style="font-size:13px;display:block;margin-bottom:2px">${s.name}</strong>
               <div style="font-size:11px;color:#888;margin-bottom:2px">${s.address}</div>
               <div style="font-size:11px;color:#aaa">${distLabel(s.distance)}</div>
               ${openingHtml}${websiteHtml}
+              <div class="wiki-area" style="margin-top:8px;border-top:1px solid rgba(128,128,128,.25);padding-top:7px">
+                <span style="font-size:10px;color:#666;font-style:italic">Wikipedia aranıyor…</span>
+              </div>
             </div>
           `)
+
+          let wikiLoaded = false
+          popup.on('open', async () => {
+            if (wikiLoaded) return
+            wikiLoaded = true
+            const wikiEl = popup.getElement()?.querySelector('.wiki-area')
+            if (!wikiEl) return
+            const html = await fetchWikipedia(s.name)
+            wikiEl.innerHTML = html ?? ''
+          })
 
           const mk = new mgl.Marker({ element: el })
             .setLngLat([s.lng, s.lat])

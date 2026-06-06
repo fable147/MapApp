@@ -15,6 +15,23 @@ export const POI_CATEGORIES = [
 ]
 
 const RADIUS = 1500
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+]
+
+async function overpassGet(query) {
+  const encoded = encodeURIComponent(query)
+  for (const base of OVERPASS_MIRRORS) {
+    try {
+      const res = await fetch(`${base}?data=${encoded}`, {
+        signal: AbortSignal.timeout(12000),
+      })
+      if (res.ok) return res.json()
+    } catch { /* try next mirror */ }
+  }
+  throw new Error('Overpass API ulaşılamıyor')
+}
 
 export function usePoi(mapRef) {
   const [poiList,       setPoiList]       = useState([])
@@ -37,12 +54,7 @@ export function usePoi(mapRef) {
 
     try {
       const query = `[out:json][timeout:20];(node[${category.tag}](around:${RADIUS},${lat},${lng});way[${category.tag}](around:${RADIUS},${lat},${lng}););out center;`
-
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: query,
-      })
-      const data = await res.json()
+      const data = await overpassGet(query)
 
       const items = data.elements
         .map((el) => ({
