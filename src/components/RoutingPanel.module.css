@@ -36,6 +36,31 @@
 }
 .swapBtn:hover { background: var(--hover); color: var(--t1); }
 
+.connector {
+  width: 2px; height: 10px; background: var(--bd);
+  margin-left: 11px; flex-shrink: 0;
+}
+
+.removeBtn {
+  background: var(--card); border: 1px solid var(--bd); border-radius: var(--r);
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--t3); font-size: 12px; transition: all 0.14s; flex-shrink: 0;
+}
+.removeBtn:hover { background: rgba(245,95,95,0.12); color: var(--danger); border-color: var(--danger); }
+
+.stopActions {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+}
+.addStopBtn {
+  flex: 1; background: var(--card); border: 1px dashed var(--bd);
+  border-radius: var(--r); padding: 7px 10px; cursor: pointer;
+  color: var(--t2); font-size: 11px; font-family: inherit; font-weight: 500;
+  display: flex; align-items: center; gap: 5px; transition: all 0.14s;
+}
+.addStopBtn:hover { background: var(--hover); color: var(--accent); border-color: var(--accent); }
+.addStopBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.addStopBtn i { font-size: 13px; }
+
 .actions { display: flex; gap: 6px; margin-top: 10px; }
 .routeBtn {
   flex: 1; background: var(--accent); border: none; border-radius: var(--r);

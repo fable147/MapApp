@@ -8,6 +8,8 @@ import { useElevation } from './hooks/useElevation'
 import { usePoi } from './hooks/usePoi'
 import { useLayerManager, getGeoJsonBounds } from './hooks/useLayerManager'
 import { useHotels } from './hooks/useHotels'
+import { useTouristSpots } from './hooks/useTouristSpots'
+import { useRestaurants } from './hooks/useRestaurants'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
@@ -114,6 +116,10 @@ export default function App() {
           reinitLayers: reinitCustomLayers } = useLayerManager(mapRef)
   const { hotels, loading: hotelLoading, error: hotelError,
           searchHotels, clearHotels, focusHotel } = useHotels(mapRef)
+  const { spots, loading: spotsLoading, error: spotsError, activeCategory: spotsActiveCategory,
+          searchSpots, clearSpots, focusSpot } = useTouristSpots(mapRef)
+  const { places, loading: placesLoading, error: placesError, activeCategory: placesActiveCategory,
+          searchRestaurants, clearRestaurants, focusRestaurant } = useRestaurants(mapRef)
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -194,12 +200,16 @@ export default function App() {
     setStatus('Altlık değiştirildi')
   }
 
-  async function handleGetRoute(origin, dest) {
+  async function handleGetRoute(waypoints, travelMode = 'car') {
     setStatus('Rota hesaplanıyor...')
     try {
-      const routes = await getRoute(origin, dest)
-      if (routes) setStatus(`${routes.length} rota bulundu • ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
-      else setStatus('Rota bulunamadı')
+      const routes = await getRoute(waypoints, travelMode)
+      if (routes) {
+        const leg = waypoints.length > 2 ? `${waypoints.length} durak` : ''
+        setStatus(`${leg ? leg + ' · ' : ''}${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
+      } else {
+        setStatus('Rota bulunamadı')
+      }
       return routes
     } catch (e) {
       setStatus('Rota alınamadı')
@@ -250,6 +260,8 @@ export default function App() {
     clearProfile()
     clearPoi()
     clearHotels()
+    clearSpots()
+    clearRestaurants()
     setStatus('Harita temizlendi')
   }
 
@@ -279,6 +291,22 @@ export default function App() {
       await fetchWeather(center.lat, center.lng)
       setStatus('Hava durumu güncellendi')
     }
+  }
+
+  function handleTouristSearch(category) {
+    const map = mapRef.current
+    if (!map) return
+    const { lat, lng } = map.getCenter()
+    searchSpots(category, lat, lng)
+    setStatus(`${category.label} aranıyor…`)
+  }
+
+  function handleFoodSearch(category) {
+    const map = mapRef.current
+    if (!map) return
+    const { lat, lng } = map.getCenter()
+    searchRestaurants(category, lat, lng)
+    setStatus(`${category.label} aranıyor…`)
   }
 
   function handleLayerAdd(name, geojson) {
@@ -312,7 +340,7 @@ export default function App() {
         const { longitude: lng, latitude: lat } = coords
         setStatus('Rota hesaplanıyor…')
         try {
-          const routes = await getRoute([lng, lat], [hotel.lng, hotel.lat])
+          const routes = await getRoute([[lng, lat], [hotel.lng, hotel.lat]])
           if (routes) setStatus(`${hotel.name} · ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
           else setStatus('Rota bulunamadı')
         } catch {
@@ -395,6 +423,20 @@ export default function App() {
         onHotelClear={clearHotels}
         onHotelItemClick={(h) => { flyTo([h.lng, h.lat], 16, 900); focusHotel(h) }}
         onHotelRouteToHotel={handleRouteToHotel}
+        spots={spots}
+        spotsLoading={spotsLoading}
+        spotsError={spotsError}
+        spotsActiveCategory={spotsActiveCategory}
+        onSearchTourist={handleTouristSearch}
+        onClearSpots={clearSpots}
+        onSpotClick={(s) => { flyTo([s.lng, s.lat], 17, 900); focusSpot(s) }}
+        places={places}
+        placesLoading={placesLoading}
+        placesError={placesError}
+        placesActiveCategory={placesActiveCategory}
+        onSearchFood={handleFoodSearch}
+        onClearRestaurants={clearRestaurants}
+        onPlaceClick={(p) => { flyTo([p.lng, p.lat], 17, 900); focusRestaurant(p) }}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />

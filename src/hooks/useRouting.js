@@ -82,7 +82,7 @@ export function useRouting(mapRef) {
     }
   }
 
-  function addEndpointMarkers(map, origin, dest) {
+  function addEndpointMarkers(map, waypoints) {
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
     const mgl = window.maplibregl
@@ -92,16 +92,22 @@ export function useRouting(mapRef) {
       el.textContent = letter
       return el
     }
-    markersRef.current = [
-      new mgl.Marker({ element: makeEl('#4d8ef5', 'A') }).setLngLat(origin).addTo(map),
-      new mgl.Marker({ element: makeEl('#f55f5f', 'B') }).setLngLat(dest).addTo(map),
-    ]
+    waypoints.forEach(([lng, lat], i) => {
+      let color, letter
+      if (i === 0)                        { color = '#4d8ef5'; letter = 'A' }
+      else if (i === waypoints.length - 1) { color = '#f55f5f'; letter = 'B' }
+      else                                { color = '#f5834d'; letter = String(i + 1) }
+      markersRef.current.push(
+        new mgl.Marker({ element: makeEl(color, letter) }).setLngLat([lng, lat]).addTo(map)
+      )
+    })
   }
 
-  async function fetchOSRM(origin, dest, travelMode = 'car') {
+  async function fetchOSRM(waypoints, travelMode = 'car') {
     const endpoints = OSRM_BASES[travelMode] || OSRM_BASES.car
-    const coords    = `${origin[0]},${origin[1]};${dest[0]},${dest[1]}`
-    const params    = `?alternatives=3&geometries=geojson&overview=full&steps=true`
+    const coords    = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(';')
+    const alts   = waypoints.length === 2 ? 'alternatives=3&' : ''
+    const params = `?${alts}geometries=geojson&overview=full&steps=true`
     const errors    = []
 
     for (const base of endpoints) {
@@ -121,16 +127,15 @@ export function useRouting(mapRef) {
     throw new Error('OSRM: ' + errors.join(', '))
   }
 
-  const getRoute = useCallback(async (origin, dest, travelMode = 'car') => {
+  const getRoute = useCallback(async (waypoints, travelMode = 'car') => {
     const map = mapRef.current
     if (!map) return null
     if (!map.isStyleLoaded()) await new Promise((r) => map.once('styledata', r))
     ensureLayers(map)
 
-    const data = await fetchOSRM(origin, dest, travelMode)
+    const data = await fetchOSRM(waypoints, travelMode)
 
     const routes = data.routes.map((r, i) => {
-      // Adım adım talimatlar
       const steps = []
       r.legs?.forEach((leg) => {
         leg.steps?.forEach((step) => {
@@ -159,7 +164,7 @@ export function useRouting(mapRef) {
     for (let i = 0; i < 3; i++) clearRouteData(map, i)
     routes.forEach((r) => setRouteData(map, r.idx, r.coords))
     paintSelected(map, 0, routes.length)
-    addEndpointMarkers(map, origin, dest)
+    addEndpointMarkers(map, waypoints)
 
     routesRef.current   = routes
     selectedRef.current = 0

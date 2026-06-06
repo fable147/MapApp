@@ -7,6 +7,7 @@ import RoutingPanel from './RoutingPanel'
 import PoiPanel from './PoiPanel'
 import LayerPanel from './LayerPanel'
 import HotelPanel from './HotelPanel'
+import DiscoverPanel from './DiscoverPanel'
 
 const TOOLS = [
   { id: 'pan',     icon: 'ti-hand-move',    label: 'Gezin' },
@@ -17,11 +18,12 @@ const TOOLS = [
 ]
 
 const TABS = [
-  { id: 'map',    icon: 'ti-layers',         label: 'Harita' },
-  { id: 'nav',    icon: 'ti-route',          label: 'Navigasyon' },
-  { id: 'poi',    icon: 'ti-radar',          label: 'Yakın' },
-  { id: 'hotels', icon: 'ti-bed',            label: 'Oteller' },
-  { id: 'layers', icon: 'ti-stack-2',        label: 'Katmanlar' },
+  { id: 'map',      icon: 'ti-layers',         label: 'Harita' },
+  { id: 'nav',      icon: 'ti-route',          label: 'Navigasyon' },
+  { id: 'discover', icon: 'ti-compass',        label: 'Keşfet' },
+  { id: 'poi',      icon: 'ti-radar',          label: 'Yakın' },
+  { id: 'hotels',   icon: 'ti-bed',            label: 'Oteller' },
+  { id: 'layers',   icon: 'ti-stack-2',        label: 'Katmanlar' },
 ]
 
 const MOB_TABS = [
@@ -44,6 +46,10 @@ export default function Sidebar({
   customLayers, onLayerAdd, onLayerRemove, onLayerToggle, onLayerColorChange,
   hotels, hotelLoading, hotelError,
   onHotelSearch, onHotelClear, onHotelItemClick, onHotelRouteToHotel,
+  spots, spotsLoading, spotsError, spotsActiveCategory,
+  onSearchTourist, onClearSpots, onSpotClick,
+  places, placesLoading, placesError, placesActiveCategory,
+  onSearchFood, onClearRestaurants, onPlaceClick,
 }) {
   const [tab, setTab]   = useState('map')
   const [loc1, setLoc1] = useState('')
@@ -164,6 +170,26 @@ export default function Sidebar({
             onSelectRoute={onSelectRoute}
           />
         </>}
+
+        {/* Keşfet sekmesi */}
+        {tab === 'discover' && (
+          <DiscoverPanel
+            spots={spots}
+            spotsLoading={spotsLoading}
+            spotsError={spotsError}
+            spotsActiveCategory={spotsActiveCategory}
+            onSearchTourist={onSearchTourist}
+            onClearSpots={onClearSpots}
+            onSpotClick={onSpotClick}
+            places={places}
+            placesLoading={placesLoading}
+            placesError={placesError}
+            placesActiveCategory={placesActiveCategory}
+            onSearchFood={onSearchFood}
+            onClearRestaurants={onClearRestaurants}
+            onPlaceClick={onPlaceClick}
+          />
+        )}
 
         {/* Yakın sekmesi */}
         {tab === 'poi' && (
