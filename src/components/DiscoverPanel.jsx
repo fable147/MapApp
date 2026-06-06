@@ -2,10 +2,11 @@ import React, { useState } from 'react'
 import styles from './DiscoverPanel.module.css'
 import { TOURIST_CATEGORIES } from '../hooks/useTouristSpots'
 import { FOOD_CATEGORIES } from '../hooks/useRestaurants'
+import { useLanguage } from '../contexts/LanguageContext'
 
-const VIEWS = [
-  { id: 'tourist', label: 'Turistik', icon: 'ti-star' },
-  { id: 'food',    label: 'Yemek',    icon: 'ti-tools-kitchen-2' },
+const VIEW_IDS = [
+  { id: 'tourist', icon: 'ti-star',           labelKey: 'discover.tourist' },
+  { id: 'food',    icon: 'ti-tools-kitchen-2', labelKey: 'discover.food' },
 ]
 
 function distLabel(m) {
@@ -19,30 +20,32 @@ export default function DiscoverPanel({
   places, placesLoading, placesError, placesActiveCategory,
   onSearchFood, onClearRestaurants, onPlaceClick,
 }) {
+  const { t } = useLanguage()
   const [view, setView] = useState('tourist')
 
-  const isTourist    = view === 'tourist'
-  const isLoading    = isTourist ? spotsLoading        : placesLoading
-  const error        = isTourist ? spotsError          : placesError
-  const activeCat    = isTourist ? spotsActiveCategory : placesActiveCategory
-  const categories   = isTourist ? TOURIST_CATEGORIES  : FOOD_CATEGORIES
-  const items        = isTourist ? spots                : places
-  const onSearch     = isTourist ? onSearchTourist      : onSearchFood
-  const onClear      = isTourist ? onClearSpots         : onClearRestaurants
-  const onItemClick  = isTourist ? onSpotClick          : onPlaceClick
+  const isTourist   = view === 'tourist'
+  const isLoading   = isTourist ? spotsLoading        : placesLoading
+  const error       = isTourist ? spotsError          : placesError
+  const activeCat   = isTourist ? spotsActiveCategory : placesActiveCategory
+  const categories  = isTourist ? TOURIST_CATEGORIES  : FOOD_CATEGORIES
+  const items       = isTourist ? spots                : places
+  const onSearch    = isTourist ? onSearchTourist      : onSearchFood
+  const onClear     = isTourist ? onClearSpots         : onClearRestaurants
+  const onItemClick = isTourist ? onSpotClick          : onPlaceClick
+  const prefix      = isTourist ? 'tourist'            : 'food'
 
   return (
     <div className={styles.wrap}>
       {/* Sub-tab toggle */}
       <div className={styles.viewBar}>
-        {VIEWS.map((v) => (
+        {VIEW_IDS.map((v) => (
           <button
             key={v.id}
             className={`${styles.viewBtn} ${view === v.id ? styles.viewActive : ''}`}
             onClick={() => setView(v.id)}
           >
             <i className={`ti ${v.icon}`} />
-            {v.label}
+            {t(v.labelKey)}
           </button>
         ))}
       </div>
@@ -59,7 +62,7 @@ export default function DiscoverPanel({
               disabled={isLoading}
             >
               <i className={`ti ${cat.icon}`} style={activeCat === cat.id ? { color: cat.color } : undefined} />
-              {cat.label}
+              {t(`${prefix}.${cat.id}`)}
             </button>
           ))}
         </div>
@@ -69,7 +72,7 @@ export default function DiscoverPanel({
       <div className={styles.results}>
         {isLoading && (
           <div className={styles.resHeader}>
-            <span className={styles.spinner} /> Aranıyor…
+            <span className={styles.spinner} /> {t('discover.loading')}
           </div>
         )}
 
@@ -82,9 +85,9 @@ export default function DiscoverPanel({
         {items.length > 0 && !isLoading && (
           <>
             <div className={styles.resHeader}>
-              <span>{items.length} yer bulundu</span>
+              <span>{items.length} {t('discover.found')}</span>
               <button className={styles.clearBtn} onClick={onClear}>
-                <i className="ti ti-x" /> Temizle
+                <i className="ti ti-x" /> {t('discover.clear')}
               </button>
             </div>
             <ul className={styles.list}>
@@ -106,7 +109,7 @@ export default function DiscoverPanel({
         {!isLoading && items.length === 0 && !error && (
           <div className={styles.empty}>
             <i className={`ti ${isTourist ? 'ti-map-2' : 'ti-tools-kitchen-2'}`} />
-            <span>Kategori seçerek harita merkezindeki yerleri keşfedin</span>
+            <span>{t('discover.empty')}</span>
           </div>
         )}
       </div>

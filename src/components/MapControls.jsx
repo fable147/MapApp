@@ -4,6 +4,7 @@ import MapSearchBox from './MapSearchBox'
 import WeatherCard from './WeatherCard'
 import MiniMap from './MiniMap'
 import CoordInput from './CoordInput'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function MapControls({
   onLocate, onFlyToTurkey, onClearAll,
@@ -18,6 +19,8 @@ export default function MapControls({
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
+
+   const { t } = useLanguage()
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -39,7 +42,7 @@ export default function MapControls({
         <button className={styles.btn} onClick={onFlyToTurkey} title="Türkiye" aria-label="Türkiye">
           <i className="ti ti-home" aria-hidden="true" />
         </button>
-        <button className={styles.btn} onClick={onClearAll} title="Temizle" aria-label="Temizle">
+        <button className={styles.btn} onClick={onClearAll} title={t('logo.trash')} aria-label={t('logo.trash')}>
           <i className="ti ti-trash" aria-hidden="true" />
         </button>
         <button

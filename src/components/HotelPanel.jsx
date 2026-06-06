@@ -1,5 +1,6 @@
 import React from 'react'
 import styles from './HotelPanel.module.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 function Stars({ count }) {
   if (!count) return null
@@ -11,17 +12,19 @@ function distLabel(m) {
 }
 
 export default function HotelPanel({ hotels, loading, error, onSearch, onClear, onItemClick, onRouteToHotel }) {
+  const { t } = useLanguage()
+
   return (
     <div className={styles.wrap}>
       <div className={styles.top}>
         <button className={styles.searchBtn} onClick={onSearch} disabled={loading}>
           {loading
-            ? <><span className={styles.spinner} />Aranıyor…</>
-            : <><i className="ti ti-search" /> Yakındaki Otelleri Ara</>}
+            ? <><span className={styles.spinner} />{t('hotel.searching')}</>
+            : <><i className="ti ti-search" /> {t('hotel.searchBtn')}</>}
         </button>
         <div className={styles.hint}>
           <i className="ti ti-info-circle" />
-          Harita merkezinden 5 km içindeki oteller · Geoapify
+          {t('hotel.hint')}
         </div>
       </div>
 
@@ -35,9 +38,9 @@ export default function HotelPanel({ hotels, loading, error, onSearch, onClear, 
       {hotels.length > 0 && (
         <>
           <div className={styles.resHeader}>
-            <span>{hotels.length} otel bulundu</span>
+            <span>{hotels.length} {t('hotel.found')}</span>
             <button className={styles.clearBtn} onClick={onClear}>
-              <i className="ti ti-x" /> Temizle
+              <i className="ti ti-x" /> {t('hotel.clear')}
             </button>
           </div>
           <ul className={styles.list}>
@@ -64,9 +67,9 @@ export default function HotelPanel({ hotels, loading, error, onSearch, onClear, 
                   <button
                     className={styles.routeBtn}
                     onClick={(e) => { e.stopPropagation(); onRouteToHotel?.(h) }}
-                    title="Konumumdan yol tarifi al"
+                    title={t('hotel.route')}
                   >
-                    <i className="ti ti-car" /> Yol Tarifi
+                    <i className="ti ti-car" /> {t('hotel.route')}
                   </button>
                 </div>
                 {h.address && <div className={styles.itemAddr}>{h.address}</div>}
@@ -79,7 +82,7 @@ export default function HotelPanel({ hotels, loading, error, onSearch, onClear, 
       {!loading && hotels.length === 0 && !error && (
         <div className={styles.empty}>
           <i className="ti ti-building-hotel" style={{ fontSize: 28, opacity: 0.25 }} />
-          <span>Yakındaki otelleri görmek için arama yapın</span>
+          <span>{t('hotel.empty')}</span>
         </div>
       )}
     </div>

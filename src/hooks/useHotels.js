@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { fetchWikipedia } from '../utils/wikipedia'
 
 const GEO_KEY = import.meta.env.VITE_GEOAPIFY_KEY ?? ''
 const GEO_URL = 'https://api.geoapify.com/v2/places'
@@ -8,13 +9,24 @@ function distLabel(m) {
   return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`
 }
 
-function catLabel(categories) {
-  if (!categories?.length) return 'Konaklama'
+const TYPE_LABELS = {
+  tr: { hotel: 'Otel', hostel: 'Hostel', guest_house: 'Pansiyon', motel: 'Motel', default: 'Konaklama' },
+  en: { hotel: 'Hotel', hostel: 'Hostel', guest_house: 'Guest House', motel: 'Motel', default: 'Accommodation' },
+}
+
+function catType(categories) {
+  if (!categories?.length) return 'default'
   const c = categories[0] ?? ''
-  if (c.includes('hostel'))      return 'Hostel'
-  if (c.includes('guest_house')) return 'Pansiyon'
-  if (c.includes('motel'))       return 'Motel'
-  return 'Otel'
+  if (c.includes('hostel'))      return 'hostel'
+  if (c.includes('guest_house')) return 'guest_house'
+  if (c.includes('motel'))       return 'motel'
+  return 'hotel'
+}
+
+function catLabel(categories) {
+  const lang = localStorage.getItem('app-lang') ?? 'tr'
+  const type = catType(categories)
+  return (TYPE_LABELS[lang] ?? TYPE_LABELS.tr)[type]
 }
 
 function parseFeature(f) {
@@ -93,8 +105,11 @@ export function useHotels(mapRef) {
             ? `<div style="font-size:11px;margin-top:2px">📞 ${h.phone}</div>`
             : ''
 
-          const popup = new mgl.Popup({ offset: 18, maxWidth: '260px' }).setHTML(`
-            <div style="font-family:sans-serif;padding:2px 0;line-height:1.6">
+          const popup = new mgl.Popup({ offset: 18, maxWidth: '290px' })
+          const popupLang = localStorage.getItem('app-lang') ?? 'tr'
+          const wikiSearching = popupLang === 'en' ? 'Searching Wikipedia…' : 'Wikipedia aranıyor…'
+          popup.setHTML(`
+            <div style="font-family:sans-serif;padding:2px 0;line-height:1.6;width:260px">
               <strong style="font-size:13px;display:block;margin-bottom:2px">${h.name}</strong>
               <div style="font-size:11px;color:#888;margin-bottom:4px">${h.type}${h.address ? ' · ' + h.address : ''}</div>
               <div style="font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -102,8 +117,21 @@ export function useHotels(mapRef) {
                 <span style="color:#aaa;font-size:11px">${distLabel(h.distance)}</span>
               </div>
               ${websiteHtml}${phoneHtml}
+              <div class="wiki-area" style="margin-top:8px;border-top:1px solid rgba(128,128,128,.25);padding-top:7px">
+                <span style="font-size:10px;color:#666;font-style:italic">${wikiSearching}</span>
+              </div>
             </div>
           `)
+
+          let wikiLoaded = false
+          popup.on('open', async () => {
+            if (wikiLoaded) return
+            wikiLoaded = true
+            const wikiEl = popup.getElement()?.querySelector('.wiki-area')
+            if (!wikiEl) return
+            const html = await fetchWikipedia(h.name)
+            wikiEl.innerHTML = html ?? ''
+          })
 
           const mk = new mgl.Marker({ element: el })
             .setLngLat([h.lng, h.lat])
@@ -114,7 +142,10 @@ export function useHotels(mapRef) {
       }
 
       setHotels(results)
-      if (results.length === 0) setError('Bu bölgede kayıtlı konaklama yeri bulunamadı')
+      if (results.length === 0) {
+        const lang = localStorage.getItem('app-lang') ?? 'tr'
+        setError(lang === 'en' ? 'No accommodation found in this area' : 'Bu bölgede kayıtlı konaklama yeri bulunamadı')
+      }
     } catch (err) {
       setError(`Arama hatası: ${err.message}`)
     } finally {

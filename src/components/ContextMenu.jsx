@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react'
 import styles from './ContextMenu.module.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function ContextMenu({ x, y, lat, lng, onClose, onCopyCoords, onAddPin, onWeather }) {
+  const { t } = useLanguage()
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -17,28 +19,37 @@ export default function ContextMenu({ x, y, lat, lng, onClose, onCopyCoords, onA
     }
   }, [onClose])
 
-  // Ekran kenarına taşmasın
+  const MENU_H = 220
   const style = {
-    left: Math.min(x, window.innerWidth - 200),
-    top:  Math.min(y, window.innerHeight - 160),
+    left: Math.min(x, window.innerWidth  - 210),
+    top:  Math.min(y, window.innerHeight - MENU_H),
   }
 
   const items = [
     {
       icon: 'ti-copy',
-      label: 'Koordinatı kopyala',
+      label: t('ctx.copy'),
       sub: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
       action: () => { onCopyCoords(lat, lng); onClose() },
     },
     {
       icon: 'ti-map-pin',
-      label: 'Pin ekle',
+      label: t('ctx.pin'),
       action: () => { onAddPin(lng, lat); onClose() },
     },
     {
       icon: 'ti-cloud',
-      label: 'Hava durumu',
+      label: t('ctx.weather'),
       action: () => { onWeather(lat, lng); onClose() },
+    },
+    {
+      icon: 'ti-brand-google-maps',
+      label: t('ctx.streetview'),
+      sub: t('ctx.sv.sub'),
+      action: () => {
+        window.open(`https://www.google.com/maps?q=&layer=c&cbll=${lat},${lng}`, '_blank', 'noopener')
+        onClose()
+      },
     },
   ]
 

@@ -1,17 +1,20 @@
 import React from 'react'
 import { POI_CATEGORIES } from '../hooks/usePoi'
 import styles from './PoiPanel.module.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
 export default function PoiPanel({
   onSearch, onClear, onItemClick,
   poiList, loading, error, activeCategory,
 }) {
+  const { t } = useLanguage()
+
   return (
     <div className={styles.wrap}>
       <div className={styles.top}>
         <div className={styles.hint}>
           <i className="ti ti-info-circle" />
-          Harita merkezinin 1.5 km çevresinde arar
+          {t('poi.hint')}
         </div>
         <div className={styles.grid}>
           {POI_CATEGORIES.map((cat) => (
@@ -20,10 +23,10 @@ export default function PoiPanel({
               className={`${styles.catBtn} ${activeCategory === cat.id ? styles.active : ''}`}
               style={{ '--cc': cat.color }}
               onClick={() => onSearch(cat)}
-              title={cat.label}
+              title={t(`poi.${cat.id}`)}
             >
               <i className={`ti ${cat.icon}`} style={{ color: cat.color }} />
-              {cat.label}
+              {t(`poi.${cat.id}`)}
             </button>
           ))}
         </div>
@@ -33,11 +36,11 @@ export default function PoiPanel({
         <div className={styles.results}>
           <div className={styles.resHeader}>
             {loading
-              ? <><span className={styles.spinner} /> Aranıyor…</>
-              : <span>{poiList.length} sonuç</span>
+              ? <><span className={styles.spinner} /> {t('poi.loading')}</>
+              : <span>{poiList.length} {t('poi.results')}</span>
             }
             <button className={styles.clearBtn} onClick={onClear}>
-              <i className="ti ti-x" /> Temizle
+              <i className="ti ti-x" /> {t('poi.clear')}
             </button>
           </div>
 

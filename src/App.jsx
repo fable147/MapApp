@@ -266,8 +266,8 @@ export default function App() {
   }
 
   function handleContextMenu(e) {
-    e.preventDefault?.()
-    setContextMenu({ x: e.point?.x ?? e.clientX, y: e.point?.y ?? e.clientY, lng: e.lngLat.lng, lat: e.lngLat.lat })
+    e.originalEvent?.preventDefault()
+    setContextMenu({ x: e.point.x, y: e.point.y, lng: e.lngLat.lng, lat: e.lngLat.lat })
   }
 
   async function handleWeatherRequest() {

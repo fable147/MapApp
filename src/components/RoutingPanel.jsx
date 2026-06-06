@@ -1,26 +1,27 @@
 import React, { useState, useRef } from 'react'
 import AutocompleteInput from './AutocompleteInput'
 import styles from './RoutingPanel.module.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
-function formatDuration(min) {
-  if (min < 60) return `${min} dk`
+function formatDuration(min, t) {
+  if (min < 60) return `${min} ${t('dur.min')}`
   const h = Math.floor(min / 60), m = min % 60
-  return m > 0 ? `${h} sa ${m} dk` : `${h} sa`
+  return m > 0 ? `${h} ${t('dur.hour')} ${m} ${t('dur.min')}` : `${h} ${t('dur.hour')}`
 }
 
 const ROUTE_COLORS = ['#4d8ef5', '#34d9a0', '#f5834d']
-const ROUTE_LABELS = ['En hızlı', 'Alternatif', 'Alternatif 2']
 
-const TRAVEL_MODES = [
-  { id: 'car',  icon: 'ti-car',  label: 'Araç' },
-  { id: 'foot', icon: 'ti-walk', label: 'Yürüyüş' },
-  { id: 'bike', icon: 'ti-bike', label: 'Bisiklet' },
+const TRAVEL_MODE_IDS = [
+  { id: 'car',  icon: 'ti-car',  labelKey: 'mode.car' },
+  { id: 'foot', icon: 'ti-walk', labelKey: 'mode.foot' },
+  { id: 'bike', icon: 'ti-bike', labelKey: 'mode.bike' },
 ]
 
 let _id = 0
 const mkId = () => `s${_id++}`
 
 export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }) {
+  const { t } = useLanguage()
   const stopCountRef = useRef(2)
   const [stops, setStops] = useState([
     { id: mkId(), name: '', coord: null },
@@ -32,6 +33,8 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
   const [loading, setLoading]       = useState(false)
   const [error, setError]           = useState('')
   const [showSteps, setShowSteps]   = useState(false)
+
+  const ROUTE_LABELS = [t('route.fastest'), t('route.alt'), `${t('route.alt')} 2`]
 
   function makeStop() {
     return { id: `s${stopCountRef.current++}`, name: '', coord: null }
@@ -50,14 +53,14 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
   }
 
   function handleUseLocation(id) {
-    if (!navigator.geolocation) { setError('Konum servisi desteklenmiyor'); return }
+    if (!navigator.geolocation) { setError(t('route.locUnsup')); return }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const { longitude: lon, latitude: lat } = coords
-        updateStop(id, 'Konumunuz', { lon, lat, name: 'Konumunuz' })
+        updateStop(id, t('route.myLoc'), { lon, lat, name: t('route.myLoc') })
         setError('')
       },
-      () => setError('Konum alınamadı — izin vermeniz gerekiyor')
+      () => setError(t('route.locDenied'))
     )
   }
 
@@ -67,17 +70,17 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
 
   async function handleRoute() {
     const unresolved = stops.filter((s) => s.name.trim() && !s.coord)
-    if (unresolved.length > 0) { setError('Lütfen tüm durakları listeden seçin'); return }
+    if (unresolved.length > 0) { setError(t('route.errSelect')); return }
     const ready = stops.filter((s) => s.coord)
-    if (ready.length < 2) { setError('En az başlangıç ve bitiş noktası girin'); return }
+    if (ready.length < 2) { setError(t('route.errMin')); return }
     setError(''); setLoading(true); setRoutes([]); setShowSteps(false)
     try {
       const waypoints = ready.map((s) => [s.coord.lon, s.coord.lat])
       const result = await onGetRoute(waypoints, travelMode)
-      if (!result) { setError('Rota bulunamadı.'); return }
+      if (!result) { setError(t('route.errNone')); return }
       setRoutes(result); setSelected(0)
     } catch {
-      setError('Sunucuya ulaşılamadı. Tekrar deneyin.')
+      setError(t('route.errNet'))
     } finally {
       setLoading(false)
     }
@@ -95,28 +98,28 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
 
   return (
     <div className={styles.panel}>
-      {/* Taşıt modu */}
+      {/* Travel mode */}
       <div className={styles.modes}>
-        {TRAVEL_MODES.map((m) => (
+        {TRAVEL_MODE_IDS.map((m) => (
           <button
             key={m.id}
             className={`${styles.modeBtn} ${travelMode === m.id ? styles.modeActive : ''}`}
             onClick={() => setTravelMode(m.id)}
           >
             <i className={`ti ${m.icon}`} />
-            {m.label}
+            {t(m.labelKey)}
           </button>
         ))}
       </div>
 
-      {/* Duraklar */}
+      {/* Stops */}
       <div className={styles.inputs}>
         {stops.map((stop, idx) => {
-          const isFirst  = idx === 0
-          const isLast   = idx === stops.length - 1
-          const label    = isFirst ? 'A' : isLast ? 'B' : String(idx + 1)
-          const color    = isFirst ? '#4d8ef5' : isLast ? '#f55f5f' : '#f5834d'
-          const canDel   = stops.length > 2 && !isFirst && !isLast
+          const isFirst = idx === 0
+          const isLast  = idx === stops.length - 1
+          const label   = isFirst ? 'A' : isLast ? 'B' : String(idx + 1)
+          const color   = isFirst ? '#4d8ef5' : isLast ? '#f55f5f' : '#f5834d'
+          const canDel  = stops.length > 2 && !isFirst && !isLast
 
           return (
             <React.Fragment key={stop.id}>
@@ -125,7 +128,13 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
                 <div className={styles.dot} style={{ background: color }}>{label}</div>
                 <div className={styles.inputWrap}>
                   <AutocompleteInput
-                    placeholder={isFirst ? 'Başlangıç noktası...' : isLast ? 'Bitiş noktası...' : `Durak ${idx + 1}...`}
+                    placeholder={
+                      isFirst
+                        ? t('route.from')
+                        : isLast
+                          ? t('route.to')
+                          : `${t('route.stop')} ${idx + 1}...`
+                    }
                     value={stop.name}
                     onChange={(v) => updateStop(stop.id, v, null)}
                     onSelect={(r) => updateStop(stop.id, r.name, r)}
@@ -136,7 +145,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
                   <button
                     className={styles.locBtn}
                     onClick={() => handleUseLocation(stop.id)}
-                    title="Konumumu kullan"
+                    title={t('route.myLoc')}
                   >
                     <i className="ti ti-current-location" />
                   </button>
@@ -145,7 +154,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
                   <button
                     className={styles.removeBtn}
                     onClick={() => removeStop(stop.id)}
-                    title="Durağı kaldır"
+                    title={t('route.clear')}
                   >
                     <i className="ti ti-x" />
                   </button>
@@ -156,26 +165,26 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
         })}
       </div>
 
-      {/* Ek durak + ters çevir */}
+      {/* Add stop + reverse */}
       <div className={styles.stopActions}>
         <button className={styles.addStopBtn} onClick={addStop} disabled={stops.length >= 8}>
-          <i className="ti ti-plus" /> Ara Durak Ekle
+          <i className="ti ti-plus" /> {t('route.addStop')}
         </button>
-        <button className={styles.swapBtn} onClick={handleReverse} title="Ters çevir">
+        <button className={styles.swapBtn} onClick={handleReverse} title={t('route.clear')}>
           <i className="ti ti-arrows-exchange" />
         </button>
       </div>
 
-      {/* Ana butonlar */}
+      {/* Main actions */}
       <div className={styles.actions}>
         <button className={styles.routeBtn} onClick={handleRoute} disabled={loading}>
           {loading
-            ? <><span className={styles.spin} /> Hesaplanıyor...</>
-            : <><i className="ti ti-route" style={{ marginRight: 6 }} />Rota Bul</>
+            ? <><span className={styles.spin} /> {t('route.calc')}</>
+            : <><i className="ti ti-route" style={{ marginRight: 6 }} />{t('route.find')}</>
           }
         </button>
         {routes.length > 0 && (
-          <button className={styles.clearBtn} onClick={handleClear} aria-label="Temizle">
+          <button className={styles.clearBtn} onClick={handleClear} aria-label={t('route.clear')}>
             <i className="ti ti-x" />
           </button>
         )}
@@ -183,7 +192,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {/* Rota kartları */}
+      {/* Route cards */}
       {routes.length > 0 && (
         <div className={styles.routes}>
           {routes.map((r, i) => (
@@ -194,9 +203,9 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
             >
               <div className={styles.routeBar} style={{ background: ROUTE_COLORS[i] }} />
               <div className={styles.routeInfo}>
-                <span className={styles.routeLabel}>{ROUTE_LABELS[i] || `Rota ${i + 1}`}</span>
+                <span className={styles.routeLabel}>{ROUTE_LABELS[i] || `${t('route.alt')} ${i + 1}`}</span>
                 <span className={styles.routeMeta}>
-                  <i className="ti ti-clock" /> {formatDuration(r.durationMin)}
+                  <i className="ti ti-clock" /> {formatDuration(r.durationMin, t)}
                   &nbsp;&nbsp;
                   <i className="ti ti-road" /> {r.distanceKm} km
                 </span>
@@ -207,12 +216,12 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
         </div>
       )}
 
-      {/* Adım adım talimatlar */}
+      {/* Step by step */}
       {currentRoute?.steps?.length > 0 && (
         <div className={styles.stepsSection}>
           <button className={styles.stepsToggle} onClick={() => setShowSteps((v) => !v)}>
             <i className={`ti ${showSteps ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
-            Adım adım talimatlar ({currentRoute.steps.length})
+            {t('route.steps')} ({currentRoute.steps.length})
           </button>
           {showSteps && (
             <div className={styles.stepsList}>

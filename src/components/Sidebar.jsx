@@ -8,30 +8,31 @@ import PoiPanel from './PoiPanel'
 import LayerPanel from './LayerPanel'
 import HotelPanel from './HotelPanel'
 import DiscoverPanel from './DiscoverPanel'
+import { useLanguage } from '../contexts/LanguageContext'
 
-const TOOLS = [
-  { id: 'pan',     icon: 'ti-hand-move',    label: 'Gezin' },
-  { id: 'pin',     icon: 'ti-map-pin',       label: 'Pin Koy' },
-  { id: 'draw',    icon: 'ti-pencil',         label: 'Çiz' },
-  { id: 'measure', icon: 'ti-ruler-measure',  label: 'Ölç' },
-  { id: 'polygon', icon: 'ti-polygon',        label: 'Alan' },
+const TOOL_IDS = [
+  { id: 'pan',     icon: 'ti-hand-move',   labelKey: 'tool.pan' },
+  { id: 'pin',     icon: 'ti-map-pin',      labelKey: 'tool.pin' },
+  { id: 'draw',    icon: 'ti-pencil',        labelKey: 'tool.draw' },
+  { id: 'measure', icon: 'ti-ruler-measure', labelKey: 'tool.measure' },
+  { id: 'polygon', icon: 'ti-polygon',       labelKey: 'tool.polygon' },
 ]
 
-const TABS = [
-  { id: 'map',      icon: 'ti-layers',         label: 'Harita' },
-  { id: 'nav',      icon: 'ti-route',          label: 'Navigasyon' },
-  { id: 'discover', icon: 'ti-compass',        label: 'Keşfet' },
-  { id: 'poi',      icon: 'ti-radar',          label: 'Yakın' },
-  { id: 'hotels',   icon: 'ti-bed',            label: 'Oteller' },
-  { id: 'layers',   icon: 'ti-stack-2',        label: 'Katmanlar' },
+const TAB_IDS = [
+  { id: 'map',      icon: 'ti-layers',  labelKey: 'tab.map' },
+  { id: 'nav',      icon: 'ti-route',   labelKey: 'tab.nav' },
+  { id: 'discover', icon: 'ti-compass', labelKey: 'tab.discover' },
+  { id: 'poi',      icon: 'ti-radar',   labelKey: 'tab.poi' },
+  { id: 'hotels',   icon: 'ti-bed',     labelKey: 'tab.hotels' },
+  { id: 'layers',   icon: 'ti-stack-2', labelKey: 'tab.layers' },
 ]
 
-const MOB_TABS = [
-  { id: 'map',    icon: 'ti-layers',    label: 'Harita' },
-  { id: 'nav',    icon: 'ti-route',     label: 'Navigasyon' },
-  { id: 'poi',    icon: 'ti-radar',     label: 'Yakın' },
-  { id: 'layers', icon: 'ti-stack-2',   label: 'Katmanlar' },
-  { id: 'close',  icon: 'ti-x',         label: 'Kapat' },
+const MOB_TAB_IDS = [
+  { id: 'map',    icon: 'ti-layers',  labelKey: 'mob.map' },
+  { id: 'nav',    icon: 'ti-route',   labelKey: 'mob.nav' },
+  { id: 'poi',    icon: 'ti-radar',   labelKey: 'mob.poi' },
+  { id: 'layers', icon: 'ti-stack-2', labelKey: 'mob.layers' },
+  { id: 'close',  icon: 'ti-x',       labelKey: 'mob.close' },
 ]
 
 export default function Sidebar({
@@ -51,6 +52,7 @@ export default function Sidebar({
   places, placesLoading, placesError, placesActiveCategory,
   onSearchFood, onClearRestaurants, onPlaceClick,
 }) {
+  const { t, toggleLang } = useLanguage()
   const [tab, setTab]   = useState('map')
   const [loc1, setLoc1] = useState('')
   const [loc2, setLoc2] = useState('')
@@ -61,53 +63,55 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Sidebar gövdesi */}
       <aside className={sidebarClass}>
         {/* Desktop logo */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
             <i className="ti ti-map-2" aria-hidden="true" />
           </div>
-          <div>
+          <div className={styles.logoMeta}>
             <div className={styles.logoText}>MapApp</div>
-            <div className={styles.logoSub}>Harita Uygulaması</div>
+            <div className={styles.logoSub}>{t('logo.sub')}</div>
           </div>
+          <button className={styles.langBtn} onClick={toggleLang} title="Switch language">
+            {t('lang.switch')}
+          </button>
         </div>
 
         {/* Desktop tab bar */}
         <div className={styles.tabBar}>
-          {TABS.map((t) => (
+          {TAB_IDS.map((tb) => (
             <button
-              key={t.id}
-              className={`${styles.tabBtn} ${tab === t.id ? styles.tabActive : ''}`}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              className={`${styles.tabBtn} ${tab === tb.id ? styles.tabActive : ''}`}
+              onClick={() => setTab(tb.id)}
             >
-              <i className={`ti ${t.icon}`} aria-hidden="true" />
-              {t.label}
+              <i className={`ti ${tb.icon}`} aria-hidden="true" />
+              {t(tb.labelKey)}
             </button>
           ))}
         </div>
 
-        {/* Harita sekmesi */}
+        {/* Harita / Map sekmesi */}
         {tab === 'map' && <>
           <div className={styles.section}>
-            <div className={styles.secTitle}>Araçlar</div>
+            <div className={styles.secTitle}>{t('section.tools')}</div>
             <div className={styles.toolGrid}>
-              {TOOLS.map((t) => (
+              {TOOL_IDS.map((tl) => (
                 <button
-                  key={t.id}
-                  className={`${styles.toolBtn} ${mode === t.id ? styles.active : ''}`}
-                  onClick={() => onModeChange(t.id)}
+                  key={tl.id}
+                  className={`${styles.toolBtn} ${mode === tl.id ? styles.active : ''}`}
+                  onClick={() => onModeChange(tl.id)}
                 >
-                  <i className={`ti ${t.icon}`} aria-hidden="true" />
-                  {t.label}
+                  <i className={`ti ${tl.icon}`} aria-hidden="true" />
+                  {t(tl.labelKey)}
                 </button>
               ))}
             </div>
           </div>
 
           <div className={styles.section}>
-            <div className={styles.secTitle}>Altlık</div>
+            <div className={styles.secTitle}>{t('section.basemap')}</div>
             <div className={styles.styleGrid}>
               {Object.entries(MAP_STYLES).map(([key, val]) => (
                 <button
@@ -122,9 +126,9 @@ export default function Sidebar({
           </div>
 
           <div className={styles.section}>
-            <div className={styles.secTitle}>Mesafe Ölç</div>
+            <div className={styles.secTitle}>{t('section.distance')}</div>
             <AutocompleteInput
-              placeholder="Başlangıç noktası..."
+              placeholder={t('dist.from')}
               value={loc1}
               onChange={setLoc1}
               onSelect={(r) => setLoc1(r.name)}
@@ -132,7 +136,7 @@ export default function Sidebar({
             />
             <AutocompleteInput
               id="loc2-inp"
-              placeholder="Bitiş noktası..."
+              placeholder={t('dist.to')}
               value={loc2}
               onChange={setLoc2}
               onSelect={(r) => { setLoc2(r.name); if (loc1.trim()) onCalcDistance(loc1.trim(), r.name) }}
@@ -141,7 +145,7 @@ export default function Sidebar({
             <button className={styles.calcBtn} onClick={handleCalc}>
               <i className="ti ti-calculator" aria-hidden="true"
                 style={{ fontSize: 14, verticalAlign: '-2px', marginRight: 5 }} />
-              Hesapla
+              {t('dist.calc')}
             </button>
             {distResult && (
               <div className={styles.distResult}>
@@ -152,17 +156,17 @@ export default function Sidebar({
           </div>
 
           <div className={styles.pinHeader}>
-            <span className={styles.secTitle} style={{ marginBottom: 0 }}>Pinler</span>
+            <span className={styles.secTitle} style={{ marginBottom: 0 }}>{t('section.pins')}</span>
             <span className={styles.pinCount}>{pins.length}</span>
           </div>
           <PinList pins={pins} onPinClick={onPinClick} onPinDelete={onPinDelete} />
         </>}
 
-        {/* Navigasyon sekmesi */}
+        {/* Navigasyon / Route sekmesi */}
         {tab === 'nav' && <>
           <div className={styles.navInfo}>
             <i className="ti ti-info-circle" aria-hidden="true" style={{ flexShrink: 0 }} />
-            OSRM ile ücretsiz yol tarifi.
+            {t('dist.navInfo')}
           </div>
           <RoutingPanel
             onGetRoute={onGetRoute}
@@ -171,7 +175,7 @@ export default function Sidebar({
           />
         </>}
 
-        {/* Keşfet sekmesi */}
+        {/* Keşfet / Discover sekmesi */}
         {tab === 'discover' && (
           <DiscoverPanel
             spots={spots}
@@ -191,7 +195,7 @@ export default function Sidebar({
           />
         )}
 
-        {/* Yakın sekmesi */}
+        {/* Yakın / Nearby sekmesi */}
         {tab === 'poi' && (
           <PoiPanel
             onSearch={onPoiSearch}
@@ -204,7 +208,7 @@ export default function Sidebar({
           />
         )}
 
-        {/* Oteller sekmesi */}
+        {/* Oteller / Hotels sekmesi */}
         {tab === 'hotels' && (
           <HotelPanel
             hotels={hotels}
@@ -217,7 +221,7 @@ export default function Sidebar({
           />
         )}
 
-        {/* Katmanlar sekmesi */}
+        {/* Katmanlar / Layers sekmesi */}
         {tab === 'layers' && (
           <LayerPanel
             layers={customLayers}
@@ -228,10 +232,10 @@ export default function Sidebar({
           />
         )}
 
-        {/* Pinler sekmesi — sadece mobilde görünür */}
+        {/* Pinler sekmesi — sadece mobilde */}
         {tab === 'pins' && <>
           <div className={styles.pinHeader}>
-            <span className={styles.secTitle} style={{ marginBottom: 0 }}>Pinler</span>
+            <span className={styles.secTitle} style={{ marginBottom: 0 }}>{t('section.pins')}</span>
             <span className={styles.pinCount}>{pins.length}</span>
           </div>
           <PinList pins={pins} onPinClick={onPinClick} onPinDelete={onPinDelete} />
@@ -240,26 +244,21 @@ export default function Sidebar({
 
       {/* Mobil alt tab bar */}
       <nav className={styles.mobileTabBar}>
-        {MOB_TABS.map((t) => (
+        {MOB_TAB_IDS.map((tb) => (
           <button
-            key={t.id}
-            className={`${styles.mobileTabBtn} ${activeMobileTab === t.id ? styles.mobileTabActive : ''}`}
+            key={tb.id}
+            className={`${styles.mobileTabBtn} ${activeMobileTab === tb.id ? styles.mobileTabActive : ''}`}
             onClick={() => {
-              if (t.id === 'close') {
+              if (tb.id === 'close') {
                 onMobileTabChange(null)
               } else {
-                setTab(t.id === 'pins' ? 'map' : t.id)
-                if (t.id === 'pins') setTab('map')
-                onMobileTabChange(t.id)
-                // Pin sekmesini aç
-                if (t.id === 'pins') setTab('pins')
-                else if (t.id === 'map') setTab('map')
-                else if (t.id === 'nav') setTab('nav')
+                setTab(tb.id)
+                onMobileTabChange(tb.id)
               }
             }}
           >
-            <i className={`ti ${t.icon}`} aria-hidden="true" />
-            {t.label}
+            <i className={`ti ${tb.icon}`} aria-hidden="true" />
+            {t(tb.labelKey)}
           </button>
         ))}
       </nav>
