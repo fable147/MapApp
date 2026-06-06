@@ -51,6 +51,7 @@ export default function Sidebar({
   onSearchTourist, onClearSpots, onSpotClick,
   places, placesLoading, placesError, placesActiveCategory,
   onSearchFood, onClearRestaurants, onPlaceClick,
+  flowOn, onTrafficFlow, incOn, onTrafficIncidents,
 }) {
   const { t, toggleLang } = useLanguage()
   const [tab, setTab]   = useState('map')
@@ -229,6 +230,10 @@ export default function Sidebar({
             onRemove={onLayerRemove}
             onToggle={onLayerToggle}
             onChangeColor={onLayerColorChange}
+            flowOn={flowOn}
+            onTrafficFlow={onTrafficFlow}
+            incOn={incOn}
+            onTrafficIncidents={onTrafficIncidents}
           />
         )}
 

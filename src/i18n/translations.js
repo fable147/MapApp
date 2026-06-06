@@ -131,6 +131,22 @@ const tr = {
 
   // Lang toggle
   'lang.switch': 'EN',
+
+  // Traffic
+  'traffic.section':   'Trafik',
+  'traffic.flow':      'Trafik Akışı',
+  'traffic.flowHint':  'Gerçek zamanlı hız yoğunluğu',
+  'traffic.incidents': 'Trafik Olayları',
+  'traffic.incHint':   'Kaza ve yol çalışmaları',
+
+  // Layer panel
+  'layer.drop':    'GeoJSON sürükle veya tıkla',
+  'layer.loading': 'Yükleniyor…',
+  'layer.empty':   'Henüz katman eklenmedi',
+  'layer.onlyGeo': 'Sadece .geojson veya .json dosyaları kabul edilir',
+  'layer.hide':    'Gizle',
+  'layer.show':    'Göster',
+  'layer.delete':  'Katmanı sil',
 }
 
 const en = {
@@ -266,6 +282,22 @@ const en = {
 
   // Lang toggle
   'lang.switch': 'TR',
+
+  // Traffic
+  'traffic.section':   'Traffic',
+  'traffic.flow':      'Traffic Flow',
+  'traffic.flowHint':  'Real-time speed & congestion',
+  'traffic.incidents': 'Traffic Incidents',
+  'traffic.incHint':   'Accidents & roadworks',
+
+  // Layer panel
+  'layer.drop':    'Drag GeoJSON or click',
+  'layer.loading': 'Loading…',
+  'layer.empty':   'No layers added yet',
+  'layer.onlyGeo': 'Only .geojson or .json files are accepted',
+  'layer.hide':    'Hide',
+  'layer.show':    'Show',
+  'layer.delete':  'Delete layer',
 }
 
 export default { tr, en }

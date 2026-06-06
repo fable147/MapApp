@@ -1,8 +1,13 @@
 import React, { useState, useRef } from 'react'
 import { LAYER_COLORS, readGeoJsonFile } from '../hooks/useLayerManager'
 import styles from './LayerPanel.module.css'
+import { useLanguage } from '../contexts/LanguageContext'
 
-export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChangeColor }) {
+export default function LayerPanel({
+  layers, onAdd, onRemove, onToggle, onChangeColor,
+  flowOn, onTrafficFlow, incOn, onTrafficIncidents,
+}) {
+  const { t } = useLanguage()
   const [dragging, setDragging] = useState(false)
   const [error,    setError]    = useState(null)
   const [loading,  setLoading]  = useState(false)
@@ -12,7 +17,7 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
     const file = files[0]
     if (!file) return
     if (!file.name.match(/\.(geojson|json)$/i)) {
-      setError('Sadece .geojson veya .json dosyaları kabul edilir')
+      setError(t('layer.onlyGeo'))
       return
     }
     setLoading(true)
@@ -36,7 +41,43 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
 
   return (
     <div className={styles.wrap}>
-      {/* Drop zone */}
+      {/* ── Traffic overlays ── */}
+      <div className={styles.trafficSection}>
+        <div className={styles.trafficTitle}>
+          <i className="ti ti-traffic-lights" />
+          {t('traffic.section')}
+        </div>
+
+        <button
+          className={`${styles.trafficBtn} ${flowOn ? styles.trafficOn : ''}`}
+          onClick={onTrafficFlow}
+        >
+          <span className={styles.trafficDot} style={{ background: '#f55f5f' }} />
+          <div className={styles.trafficInfo}>
+            <span className={styles.trafficLabel}>{t('traffic.flow')}</span>
+            <span className={styles.trafficSub}>{t('traffic.flowHint')}</span>
+          </div>
+          <div className={`${styles.toggle} ${flowOn ? styles.toggleOn : ''}`}>
+            <div className={styles.toggleThumb} />
+          </div>
+        </button>
+
+        <button
+          className={`${styles.trafficBtn} ${incOn ? styles.trafficOn : ''}`}
+          onClick={onTrafficIncidents}
+        >
+          <span className={styles.trafficDot} style={{ background: '#f5834d' }} />
+          <div className={styles.trafficInfo}>
+            <span className={styles.trafficLabel}>{t('traffic.incidents')}</span>
+            <span className={styles.trafficSub}>{t('traffic.incHint')}</span>
+          </div>
+          <div className={`${styles.toggle} ${incOn ? styles.toggleOn : ''}`}>
+            <div className={styles.toggleThumb} />
+          </div>
+        </button>
+      </div>
+
+      {/* ── GeoJSON drop zone ── */}
       <div
         className={`${styles.dropZone} ${dragging ? styles.over : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
@@ -46,7 +87,7 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
       >
         <i className="ti ti-file-upload" style={{ fontSize: 24, color: 'var(--t3)' }} />
         <span className={styles.dropText}>
-          {loading ? 'Yükleniyor…' : 'GeoJSON sürükle veya tıkla'}
+          {loading ? t('layer.loading') : t('layer.drop')}
         </span>
         <span className={styles.dropSub}>.geojson / .json</span>
         <input
@@ -64,9 +105,9 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
         </div>
       )}
 
-      {/* Layer list */}
+      {/* ── Custom layer list ── */}
       {layers.length === 0
-        ? <div className={styles.empty}>Henüz katman eklenmedi</div>
+        ? <div className={styles.empty}>{t('layer.empty')}</div>
         : (
           <ul className={styles.list}>
             {layers.map((layer) => (
@@ -74,21 +115,17 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
                 <button
                   className={styles.visBtn}
                   onClick={() => onToggle(layer.id)}
-                  title={layer.visible ? 'Gizle' : 'Göster'}
+                  title={layer.visible ? t('layer.hide') : t('layer.show')}
                 >
                   <i className={`ti ${layer.visible ? 'ti-eye' : 'ti-eye-off'}`} />
                 </button>
 
-                <div
-                  className={styles.colorDot}
-                  style={{ background: layer.color }}
-                />
+                <div className={styles.colorDot} style={{ background: layer.color }} />
 
                 <span className={styles.layerName} title={layer.name}>
                   {layer.name}
                 </span>
 
-                {/* Color swatches */}
                 <div className={styles.swatches}>
                   {LAYER_COLORS.map((c) => (
                     <button
@@ -104,7 +141,7 @@ export default function LayerPanel({ layers, onAdd, onRemove, onToggle, onChange
                 <button
                   className={styles.delBtn}
                   onClick={() => onRemove(layer.id)}
-                  title="Katmanı sil"
+                  title={t('layer.delete')}
                 >
                   <i className="ti ti-trash" />
                 </button>

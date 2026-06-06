@@ -7,6 +7,94 @@
   gap: 10px;
 }
 
+/* ── Traffic section ── */
+.trafficSection {
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.trafficTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--bd);
+}
+
+.trafficBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--bd);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s;
+}
+.trafficBtn:last-child { border-bottom: none; }
+.trafficBtn:hover { background: var(--hover); }
+.trafficBtn.trafficOn { background: var(--active); }
+
+.trafficDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.trafficInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.trafficLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t1);
+}
+
+.trafficSub {
+  font-size: 10px;
+  color: var(--t3);
+}
+
+/* Toggle switch */
+.toggle {
+  width: 32px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--bd);
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.2s;
+}
+.toggle.toggleOn { background: var(--accent); }
+
+.toggleThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  transition: transform 0.2s;
+}
+.toggleOn .toggleThumb { transform: translateX(14px); }
+
 /* Drop zone */
 .dropZone {
   border: 2px dashed var(--bd);

@@ -10,6 +10,7 @@ import { useLayerManager, getGeoJsonBounds } from './hooks/useLayerManager'
 import { useHotels } from './hooks/useHotels'
 import { useTouristSpots } from './hooks/useTouristSpots'
 import { useRestaurants } from './hooks/useRestaurants'
+import { useTraffic } from './hooks/useTraffic'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
@@ -120,6 +121,7 @@ export default function App() {
           searchSpots, clearSpots, focusSpot } = useTouristSpots(mapRef)
   const { places, loading: placesLoading, error: placesError, activeCategory: placesActiveCategory,
           searchRestaurants, clearRestaurants, focusRestaurant } = useRestaurants(mapRef)
+  const { flowOn, incOn, toggleFlow, toggleIncidents } = useTraffic(mapRef)
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -437,6 +439,10 @@ export default function App() {
         onSearchFood={handleFoodSearch}
         onClearRestaurants={clearRestaurants}
         onPlaceClick={(p) => { flyTo([p.lng, p.lat], 17, 900); focusRestaurant(p) }}
+        flowOn={flowOn}
+        onTrafficFlow={toggleFlow}
+        incOn={incOn}
+        onTrafficIncidents={toggleIncidents}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
