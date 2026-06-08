@@ -15,6 +15,7 @@ import { useWeatherLayer } from './hooks/useWeatherLayer'
 import { useLiveLocation } from './hooks/useLiveLocation'
 import WeatherLegend from './components/WeatherLegend'
 import LiveStatsHUD from './components/LiveStatsHUD'
+import NavOverlay from './components/NavOverlay'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
@@ -130,9 +131,27 @@ export default function App() {
   const { liveOn, toggleLive, accuracy: liveAccuracy, liveError,
           totalDistKm, elapsedSec, avgSpeedKmh, currentPos } = useLiveLocation(mapRef)
   const [routeDestCoord, setRouteDestCoord] = useState(null)
+  const [navSteps,       setNavSteps]       = useState(null)
+  const [navStepIdx,     setNavStepIdx]     = useState(0)
+
   const remainingKm = (liveOn && currentPos && routeDestCoord)
     ? haversine([currentPos.lng, currentPos.lat], [routeDestCoord.lon, routeDestCoord.lat])
     : null
+
+  const distToNextM = (liveOn && currentPos && navSteps && navSteps[navStepIdx]?.location)
+    ? haversine([currentPos.lng, currentPos.lat], navSteps[navStepIdx].location) * 1000
+    : null
+
+  // GPS güncellenince mevcut adıma yaklaşıldıysa otomatik ilerle
+  useEffect(() => {
+    if (!liveOn || !currentPos || !navSteps || navStepIdx >= navSteps.length - 1) return
+    const step = navSteps[navStepIdx]
+    if (!step?.location) return
+    const distKm = haversine([currentPos.lng, currentPos.lat], step.location)
+    if (distKm * 1000 < 30) {
+      setNavStepIdx((prev) => Math.min(prev + 1, navSteps.length - 1))
+    }
+  }, [currentPos])
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -233,7 +252,15 @@ export default function App() {
   function handleClearRoute() {
     clearRoutes()
     setRouteDestCoord(null)
+    setNavSteps(null)
+    setNavStepIdx(0)
     setStatus('Rota temizlendi')
+  }
+
+  function handleRouteSuccess(destCoord, steps) {
+    setRouteDestCoord(destCoord ?? null)
+    setNavSteps(steps ?? null)
+    setNavStepIdx(0)
   }
 
   async function handleCalcDistance(v1, v2) {
@@ -458,11 +485,17 @@ export default function App() {
         onWeatherLayer={selectWeatherLayer}
         liveOn={liveOn}
         currentPos={currentPos}
-        onRouteSuccess={setRouteDestCoord}
+        onRouteSuccess={handleRouteSuccess}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
         <WeatherLegend activeLayer={activeWeatherLayer} />
+        <NavOverlay
+          liveOn={liveOn}
+          navSteps={navSteps}
+          navStepIdx={navStepIdx}
+          distToNextM={distToNextM}
+        />
         <LiveStatsHUD
           liveOn={liveOn}
           totalDistKm={totalDistKm}

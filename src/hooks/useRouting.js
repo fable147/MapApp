@@ -142,10 +142,11 @@ export function useRouting(mapRef) {
           if (!step.maneuver) return
           const turn = parseTurnIcon(step)
           steps.push({
-            icon:  turn.icon,
-            label: step.name ? `${turn.label} — ${step.name}` : turn.label,
-            dist:  formatDist(step.distance),
-            distM: step.distance,
+            icon:     turn.icon,
+            label:    step.name ? `${turn.label} — ${step.name}` : turn.label,
+            dist:     formatDist(step.distance),
+            distM:    step.distance,
+            location: step.maneuver.location, // [lng, lat]
           })
         })
       })

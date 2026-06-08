@@ -84,7 +84,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute, 
       const result = await onGetRoute(waypoints, travelMode)
       if (!result) { setError(t('route.errNone')); return }
       setRoutes(result); setSelected(0)
-      onRouteSuccess?.(ready[ready.length - 1].coord)
+      onRouteSuccess?.(ready[ready.length - 1].coord, result[0].steps)
     } catch {
       setError(t('route.errNet'))
     } finally {
@@ -98,7 +98,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute, 
     setStops([makeStop(), makeStop()])
     setRoutes([]); setSelected(0); setError(''); setShowSteps(false)
     onClearRoute()
-    onRouteSuccess?.(null)
+    onRouteSuccess?.(null, null)
   }
 
   const currentRoute = routes[selected]
