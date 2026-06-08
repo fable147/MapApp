@@ -2,10 +2,12 @@ import React, { useState, useRef } from 'react'
 import { LAYER_COLORS, readGeoJsonFile } from '../hooks/useLayerManager'
 import styles from './LayerPanel.module.css'
 import { useLanguage } from '../contexts/LanguageContext'
+import { WEATHER_LAYERS } from '../hooks/useWeatherLayer'
 
 export default function LayerPanel({
   layers, onAdd, onRemove, onToggle, onChangeColor,
   flowOn, onTrafficFlow, incOn, onTrafficIncidents,
+  activeWeatherLayer, onWeatherLayer,
 }) {
   const { t } = useLanguage()
   const [dragging, setDragging] = useState(false)
@@ -75,6 +77,27 @@ export default function LayerPanel({
             <div className={styles.toggleThumb} />
           </div>
         </button>
+      </div>
+
+      {/* ── Weather layer ── */}
+      <div className={styles.trafficSection}>
+        <div className={styles.trafficTitle}>
+          <i className="ti ti-cloud" />
+          {t('weather.section')}
+        </div>
+        <div className={styles.weatherGrid}>
+          {WEATHER_LAYERS.map((lyr) => (
+            <button
+              key={lyr.id}
+              className={`${styles.weatherBtn} ${activeWeatherLayer === lyr.id ? styles.weatherActive : ''}`}
+              style={{ '--wc': lyr.color }}
+              onClick={() => onWeatherLayer(lyr.id)}
+            >
+              <i className={`ti ${lyr.icon}`} />
+              {t(`weather.${lyr.id}`)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── GeoJSON drop zone ── */}

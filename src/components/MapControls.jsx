@@ -16,6 +16,7 @@ export default function MapControls({
   theme, onToggleTheme,
   onCoordGo,
   terrainOn, onToggleTerrain,
+  liveOn, onToggleLive, liveAccuracy,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
@@ -38,6 +39,14 @@ export default function MapControls({
       <div className={styles.controls}>
         <button className={styles.btn} onClick={onLocate} title="Konumumu bul" aria-label="Konumumu bul">
           <i className="ti ti-current-location" aria-hidden="true" />
+        </button>
+        <button
+          className={`${styles.btn} ${liveOn ? styles.btnLive : ''}`}
+          onClick={onToggleLive}
+          title={liveOn ? `Canlı takip — ±${liveAccuracy ?? '…'} m` : 'Canlı konum takibi'}
+          aria-label="Canlı konum takibi"
+        >
+          <i className="ti ti-navigation" aria-hidden="true" />
         </button>
         <button className={styles.btn} onClick={onFlyToTurkey} title="Türkiye" aria-label="Türkiye">
           <i className="ti ti-home" aria-hidden="true" />

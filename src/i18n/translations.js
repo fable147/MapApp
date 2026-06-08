@@ -139,6 +139,13 @@ const tr = {
   'traffic.incidents': 'Trafik Olayları',
   'traffic.incHint':   'Kaza ve yol çalışmaları',
 
+  // Weather layer
+  'weather.section':          'Hava Durumu Katmanı',
+  'weather.precipitation_new': 'Yağış',
+  'weather.temp_new':          'Sıcaklık',
+  'weather.wind_new':          'Rüzgar',
+  'weather.clouds_new':        'Bulutluluk',
+
   // Layer panel
   'layer.drop':    'GeoJSON sürükle veya tıkla',
   'layer.loading': 'Yükleniyor…',
@@ -289,6 +296,13 @@ const en = {
   'traffic.flowHint':  'Real-time speed & congestion',
   'traffic.incidents': 'Traffic Incidents',
   'traffic.incHint':   'Accidents & roadworks',
+
+  // Weather layer
+  'weather.section':           'Weather Layer',
+  'weather.precipitation_new': 'Precipitation',
+  'weather.temp_new':          'Temperature',
+  'weather.wind_new':          'Wind',
+  'weather.clouds_new':        'Cloud Cover',
 
   // Layer panel
   'layer.drop':    'Drag GeoJSON or click',

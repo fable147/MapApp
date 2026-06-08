@@ -88,3 +88,29 @@ html, body, #root {
 @media (max-width: 768px) {
   html, body, #root { height: 100dvh; }
 }
+
+/* ── Canlı konum noktası ── */
+.live-loc-wrap {
+  position: relative;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+}
+.live-loc-ring {
+  position: absolute;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(77, 142, 245, 0.3);
+  animation: liveRingPulse 2s ease-out infinite;
+}
+.live-loc-core {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #4d8ef5;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1.5px rgba(77,142,245,0.5), 0 2px 8px rgba(0,0,0,0.35);
+  position: relative; z-index: 1;
+}
+@keyframes liveRingPulse {
+  0%   { transform: scale(0.4); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}

@@ -52,6 +52,7 @@ export default function Sidebar({
   places, placesLoading, placesError, placesActiveCategory,
   onSearchFood, onClearRestaurants, onPlaceClick,
   flowOn, onTrafficFlow, incOn, onTrafficIncidents,
+  activeWeatherLayer, onWeatherLayer,
 }) {
   const { t, toggleLang } = useLanguage()
   const [tab, setTab]   = useState('map')
@@ -65,6 +66,11 @@ export default function Sidebar({
   return (
     <>
       <aside className={sidebarClass}>
+        {/* Mobil kapama handle'ı — tıklayarak veya dışarı tıklayarak kapatılır */}
+        <div className={styles.mobileHandle} onClick={() => onMobileTabChange(null)} aria-hidden="true">
+          <div className={styles.handleBar} />
+        </div>
+
         {/* Desktop logo */}
         <div className={styles.logo}>
           <div className={styles.logoIcon}>
@@ -234,6 +240,8 @@ export default function Sidebar({
             onTrafficFlow={onTrafficFlow}
             incOn={incOn}
             onTrafficIncidents={onTrafficIncidents}
+            activeWeatherLayer={activeWeatherLayer}
+            onWeatherLayer={onWeatherLayer}
           />
         )}
 
@@ -267,6 +275,15 @@ export default function Sidebar({
           </button>
         ))}
       </nav>
+
+      {/* Mobil backdrop — sidebar açıkken dışarıya tıklayınca kapanır */}
+      {isOpen && (
+        <div
+          className={styles.backdrop}
+          onClick={() => onMobileTabChange(null)}
+          aria-hidden="true"
+        />
+      )}
     </>
   )
 }

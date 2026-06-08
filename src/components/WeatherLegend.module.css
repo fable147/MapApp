@@ -1,0 +1,46 @@
+.wrap {
+  position: absolute;
+  bottom: 32px;
+  left: 16px;
+  background: rgba(14, 17, 23, 0.82);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 9px 12px 8px;
+  min-width: 160px;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.unit {
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.5);
+}
+
+.bar {
+  height: 10px;
+  border-radius: 5px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: rgba(255,255,255,0.55);
+  font-variant-numeric: tabular-nums;
+}

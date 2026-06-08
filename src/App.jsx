@@ -11,6 +11,9 @@ import { useHotels } from './hooks/useHotels'
 import { useTouristSpots } from './hooks/useTouristSpots'
 import { useRestaurants } from './hooks/useRestaurants'
 import { useTraffic } from './hooks/useTraffic'
+import { useWeatherLayer } from './hooks/useWeatherLayer'
+import { useLiveLocation } from './hooks/useLiveLocation'
+import WeatherLegend from './components/WeatherLegend'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
@@ -122,6 +125,8 @@ export default function App() {
   const { places, loading: placesLoading, error: placesError, activeCategory: placesActiveCategory,
           searchRestaurants, clearRestaurants, focusRestaurant } = useRestaurants(mapRef)
   const { flowOn, incOn, toggleFlow, toggleIncidents } = useTraffic(mapRef)
+  const { activeWeatherLayer, selectWeatherLayer } = useWeatherLayer(mapRef)
+  const { liveOn, toggleLive, accuracy: liveAccuracy, liveError } = useLiveLocation(mapRef)
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -443,9 +448,12 @@ export default function App() {
         onTrafficFlow={toggleFlow}
         incOn={incOn}
         onTrafficIncidents={toggleIncidents}
+        activeWeatherLayer={activeWeatherLayer}
+        onWeatherLayer={selectWeatherLayer}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
+        <WeatherLegend activeLayer={activeWeatherLayer} />
         <MapControls
           onLocate={handleLocate}
           onFlyToTurkey={() => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") }}
@@ -464,6 +472,9 @@ export default function App() {
           onCoordGo={handleCoordGo}
           terrainOn={terrainOn}
           onToggleTerrain={toggleTerrain}
+          liveOn={liveOn}
+          onToggleLive={toggleLive}
+          liveAccuracy={liveAccuracy}
           onSearchSelect={({ lon, lat, name }) => {
             const doFly = () => {
               flyTo([lon, lat], 13, 1000)
