@@ -9,7 +9,7 @@ function formatTime(sec) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export default function LiveStatsHUD({ liveOn, totalDistKm, elapsedSec, avgSpeedKmh }) {
+export default function LiveStatsHUD({ liveOn, totalDistKm, elapsedSec, avgSpeedKmh, remainingKm }) {
   if (!liveOn) return null
   return (
     <div className={styles.hud}>
@@ -29,6 +29,15 @@ export default function LiveStatsHUD({ liveOn, totalDistKm, elapsedSec, avgSpeed
           <span className={styles.val}>{avgSpeedKmh > 0 ? avgSpeedKmh.toFixed(1) : '—'}</span>
           <span className={styles.unit}>km/sa</span>
         </div>
+        {remainingKm != null && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.stat}>
+              <span className={`${styles.val} ${styles.remaining}`}>{remainingKm.toFixed(1)}</span>
+              <span className={styles.unit}>kaldı</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

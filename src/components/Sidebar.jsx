@@ -53,6 +53,7 @@ export default function Sidebar({
   onSearchFood, onClearRestaurants, onPlaceClick,
   flowOn, onTrafficFlow, incOn, onTrafficIncidents,
   activeWeatherLayer, onWeatherLayer,
+  liveOn, currentPos, onRouteSuccess,
 }) {
   const { t, toggleLang } = useLanguage()
   const [tab, setTab]   = useState('map')
@@ -179,6 +180,9 @@ export default function Sidebar({
             onGetRoute={onGetRoute}
             onClearRoute={onClearRoute}
             onSelectRoute={onSelectRoute}
+            liveOn={liveOn}
+            currentPos={currentPos}
+            onRouteSuccess={onRouteSuccess}
           />
         </>}
 

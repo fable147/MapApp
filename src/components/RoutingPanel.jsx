@@ -20,7 +20,7 @@ const TRAVEL_MODE_IDS = [
 let _id = 0
 const mkId = () => `s${_id++}`
 
-export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }) {
+export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute, liveOn, currentPos, onRouteSuccess }) {
   const { t } = useLanguage()
   const stopCountRef = useRef(2)
   const [stops, setStops] = useState([
@@ -53,6 +53,11 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
   }
 
   function handleUseLocation(id) {
+    if (liveOn && currentPos) {
+      updateStop(id, t('route.myLoc'), { lon: currentPos.lng, lat: currentPos.lat, name: t('route.myLoc') })
+      setError('')
+      return
+    }
     if (!navigator.geolocation) { setError(t('route.locUnsup')); return }
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
@@ -79,6 +84,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
       const result = await onGetRoute(waypoints, travelMode)
       if (!result) { setError(t('route.errNone')); return }
       setRoutes(result); setSelected(0)
+      onRouteSuccess?.(ready[ready.length - 1].coord)
     } catch {
       setError(t('route.errNet'))
     } finally {
@@ -92,6 +98,7 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
     setStops([makeStop(), makeStop()])
     setRoutes([]); setSelected(0); setError(''); setShowSteps(false)
     onClearRoute()
+    onRouteSuccess?.(null)
   }
 
   const currentRoute = routes[selected]
@@ -143,11 +150,11 @@ export default function RoutingPanel({ onGetRoute, onClearRoute, onSelectRoute }
                 </div>
                 {isFirst && (
                   <button
-                    className={styles.locBtn}
+                    className={`${styles.locBtn} ${liveOn ? styles.locBtnLive : ''}`}
                     onClick={() => handleUseLocation(stop.id)}
-                    title={t('route.myLoc')}
+                    title={liveOn ? 'Canlı konumu kullan' : t('route.myLoc')}
                   >
-                    <i className="ti ti-current-location" />
+                    <i className={liveOn ? 'ti ti-navigation' : 'ti ti-current-location'} />
                   </button>
                 )}
                 {canDel && (

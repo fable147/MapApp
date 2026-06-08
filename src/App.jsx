@@ -128,7 +128,11 @@ export default function App() {
   const { flowOn, incOn, toggleFlow, toggleIncidents } = useTraffic(mapRef)
   const { activeWeatherLayer, selectWeatherLayer } = useWeatherLayer(mapRef)
   const { liveOn, toggleLive, accuracy: liveAccuracy, liveError,
-          totalDistKm, elapsedSec, avgSpeedKmh } = useLiveLocation(mapRef)
+          totalDistKm, elapsedSec, avgSpeedKmh, currentPos } = useLiveLocation(mapRef)
+  const [routeDestCoord, setRouteDestCoord] = useState(null)
+  const remainingKm = (liveOn && currentPos && routeDestCoord)
+    ? haversine([currentPos.lng, currentPos.lat], [routeDestCoord.lon, routeDestCoord.lat])
+    : null
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -228,6 +232,7 @@ export default function App() {
 
   function handleClearRoute() {
     clearRoutes()
+    setRouteDestCoord(null)
     setStatus('Rota temizlendi')
   }
 
@@ -451,6 +456,9 @@ export default function App() {
         onTrafficIncidents={toggleIncidents}
         activeWeatherLayer={activeWeatherLayer}
         onWeatherLayer={selectWeatherLayer}
+        liveOn={liveOn}
+        currentPos={currentPos}
+        onRouteSuccess={setRouteDestCoord}
       />
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
@@ -460,6 +468,7 @@ export default function App() {
           totalDistKm={totalDistKm}
           elapsedSec={elapsedSec}
           avgSpeedKmh={avgSpeedKmh}
+          remainingKm={remainingKm}
         />
         <MapControls
           onLocate={handleLocate}

@@ -28,6 +28,11 @@
   cursor: pointer; color: var(--accent); font-size: 14px; transition: all 0.14s; flex-shrink: 0;
 }
 .locBtn:hover { background: var(--active); }
+.locBtnLive { color: #34d9a0; border-color: rgba(52, 217, 160, 0.4); animation: livePulse 2s ease-in-out infinite; }
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 217, 160, 0); }
+  50%       { box-shadow: 0 0 0 4px rgba(52, 217, 160, 0.25); }
+}
 .swapBtn {
   align-self: center; margin: 4px 0 4px auto;
   background: var(--card); border: 1px solid var(--bd); border-radius: var(--r);

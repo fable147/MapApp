@@ -72,6 +72,7 @@ export function useLiveLocation(mapRef) {
   const [error,        setError]        = useState(null)
   const [totalDistKm,  setTotalDistKm]  = useState(0)
   const [elapsedSec,   setElapsedSec]   = useState(0)
+  const [currentPos,   setCurrentPos]   = useState(null)
 
   const watchIdRef    = useRef(null)
   const markerRef     = useRef(null)
@@ -123,6 +124,7 @@ export function useLiveLocation(mapRef) {
     setError(null)
     setTotalDistKm(0)
     setElapsedSec(0)
+    setCurrentPos(null)
   }, [mapRef])
 
   const startTracking = useCallback(() => {
@@ -165,6 +167,7 @@ export function useLiveLocation(mapRef) {
         markerRef.current.setLngLat([lng, lat]).addTo(currentMap)
         currentMap.getSource(ACC_SRC)?.setData(makeCircle(lat, lng, acc))
         setAccuracy(Math.round(acc))
+        setCurrentPos({ lng, lat })
 
         // Gürültü filtresi: doğruluk < 50m, hareket > 5m
         if (acc <= 50) {
@@ -220,5 +223,5 @@ export function useLiveLocation(mapRef) {
     ? +(( totalDistKm / (elapsedSec / 3600) ).toFixed(1))
     : 0
 
-  return { liveOn, toggleLive, accuracy, liveError: error, totalDistKm, elapsedSec, avgSpeedKmh }
+  return { liveOn, toggleLive, accuracy, liveError: error, totalDistKm, elapsedSec, avgSpeedKmh, currentPos }
 }
