@@ -28,13 +28,17 @@ export default function AutocompleteInput({
   const { query, setQuery, suggestions, loading, open, select, close } =
     useAutocomplete(300)
 
-  // Dışarı tıklanınca kapat
+  // Dışarı tıklanınca kapat (mouse + touch)
   useEffect(() => {
-    function handleClickOutside(e) {
+    function handleOutside(e) {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) close()
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
   }, [close])
 
   // Controlled value → query sync (parent'tan set edilince)
@@ -107,6 +111,7 @@ export default function AutocompleteInput({
               className={styles.item}
               role="option"
               onMouseDown={(e) => { e.preventDefault(); handleSelect(s) }}
+            onTouchEnd={(e) => { e.preventDefault(); handleSelect(s) }}
             >
               <i className={`ti ${s.icon}`} aria-hidden="true" style={{ fontSize: 14, flexShrink: 0, color: 'var(--accent)' }} />
               <div className={styles.itemText}>

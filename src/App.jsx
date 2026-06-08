@@ -14,6 +14,7 @@ import { useTraffic } from './hooks/useTraffic'
 import { useWeatherLayer } from './hooks/useWeatherLayer'
 import { useLiveLocation } from './hooks/useLiveLocation'
 import WeatherLegend from './components/WeatherLegend'
+import LiveStatsHUD from './components/LiveStatsHUD'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
@@ -109,7 +110,7 @@ export default function App() {
     terrainOn, toggleTerrain,
   } = useMap(containerRef, handleMapClick)
 
-  const { pins, addPin, removePin, clearPins } = usePins(mapRef)
+  const { pins, addPin, removePin, clearPins, focusPin } = usePins(mapRef)
   const { getRoute, selectRoute, clearRoutes, reinitLayers } = useRouting(mapRef)
   const { weather, loading: weatherLoading, error: weatherError, fetchWeather, clearWeather } = useWeather()
   const { theme, toggleTheme } = useTheme()
@@ -126,7 +127,8 @@ export default function App() {
           searchRestaurants, clearRestaurants, focusRestaurant } = useRestaurants(mapRef)
   const { flowOn, incOn, toggleFlow, toggleIncidents } = useTraffic(mapRef)
   const { activeWeatherLayer, selectWeatherLayer } = useWeatherLayer(mapRef)
-  const { liveOn, toggleLive, accuracy: liveAccuracy, liveError } = useLiveLocation(mapRef)
+  const { liveOn, toggleLive, accuracy: liveAccuracy, liveError,
+          totalDistKm, elapsedSec, avgSpeedKmh } = useLiveLocation(mapRef)
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -389,8 +391,7 @@ export default function App() {
   }
 
   function handlePinClick(pin) {
-    flyTo([pin.lng, pin.lat], 13, 800)
-    pin.marker.togglePopup()
+    focusPin(pin)
   }
 
   return (
@@ -454,6 +455,12 @@ export default function App() {
       <div className={styles.mapWrap}>
         <div ref={containerRef} className={styles.map} />
         <WeatherLegend activeLayer={activeWeatherLayer} />
+        <LiveStatsHUD
+          liveOn={liveOn}
+          totalDistKm={totalDistKm}
+          elapsedSec={elapsedSec}
+          avgSpeedKmh={avgSpeedKmh}
+        />
         <MapControls
           onLocate={handleLocate}
           onFlyToTurkey={() => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") }}
