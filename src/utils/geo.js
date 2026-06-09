@@ -39,6 +39,28 @@ export function polygonCentroid(coords) {
   ]
 }
 
+// Bir noktadan GeoJSON koordinat dizisine (polyline) minimum mesafeyi metre cinsinden döndürür
+export function distToPolylineM([pLng, pLat], coords) {
+  if (!coords || coords.length < 2) return Infinity
+  const R = 6371000
+  const d2r = Math.PI / 180
+  const cos = Math.cos(pLat * d2r)
+  let minDist2 = Infinity
+  for (let i = 0; i < coords.length - 1; i++) {
+    const ax = (coords[i][0]   - pLng) * cos * R * d2r
+    const ay = (coords[i][1]   - pLat)       * R * d2r
+    const bx = (coords[i+1][0] - pLng) * cos * R * d2r
+    const by = (coords[i+1][1] - pLat)       * R * d2r
+    const dx = bx - ax, dy = by - ay
+    const len2 = dx * dx + dy * dy
+    const t = len2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0
+    const cx = ax + t * dx, cy = ay + t * dy
+    const d2 = cx * cx + cy * cy
+    if (d2 < minDist2) minDist2 = d2
+  }
+  return Math.sqrt(minDist2)
+}
+
 const geoCache = {}
 
 /**

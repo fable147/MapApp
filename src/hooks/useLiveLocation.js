@@ -74,15 +74,26 @@ export function useLiveLocation(mapRef) {
   const [elapsedSec,   setElapsedSec]   = useState(0)
   const [currentPos,   setCurrentPos]   = useState(null)
 
-  const watchIdRef    = useRef(null)
-  const markerRef     = useRef(null)
-  const liveOnRef     = useRef(false)
-  const firstFixRef   = useRef(true)
-  const pathCoordsRef = useRef([])
-  const lastPointRef  = useRef(null)
-  const totalDistRef  = useRef(0)
-  const startTimeRef  = useRef(null)
-  const timerRef      = useRef(null)
+  const watchIdRef      = useRef(null)
+  const markerRef       = useRef(null)
+  const liveOnRef       = useRef(false)
+  const firstFixRef     = useRef(true)
+  const pathCoordsRef   = useRef([])
+  const lastPointRef    = useRef(null)
+  const totalDistRef    = useRef(0)
+  const startTimeRef    = useRef(null)
+  const timerRef        = useRef(null)
+  const restartWatchRef = useRef(null)
+  const wakeLockRef     = useRef(null)
+
+  const requestWakeLock = useCallback(async () => {
+    if (!('wakeLock' in navigator)) return
+    try {
+      wakeLockRef.current?.release().catch(() => {})
+      wakeLockRef.current = await navigator.wakeLock.request('screen')
+      wakeLockRef.current.addEventListener('release', () => { wakeLockRef.current = null })
+    } catch {}
+  }, [])
 
   // Stil değişince tüm katmanları yeniden kur
   useEffect(() => {
@@ -113,6 +124,9 @@ export function useLiveLocation(mapRef) {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     const map = mapRef.current
     if (map) { removeAccuracyLayers(map); removePathLayers(map) }
+    wakeLockRef.current?.release().catch(() => {})
+    wakeLockRef.current  = null
+    restartWatchRef.current = null
     liveOnRef.current = false
     firstFixRef.current = true
     pathCoordsRef.current = []
@@ -158,52 +172,64 @@ export function useLiveLocation(mapRef) {
       }
     }, 1000)
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { longitude: lng, latitude: lat, accuracy: acc } = pos.coords
-        const currentMap = mapRef.current
-        if (!currentMap || !liveOnRef.current) return
+    const geoOpts = { enableHighAccuracy: true, maximumAge: 4000, timeout: 12000 }
 
-        markerRef.current.setLngLat([lng, lat]).addTo(currentMap)
-        currentMap.getSource(ACC_SRC)?.setData(makeCircle(lat, lng, acc))
-        setAccuracy(Math.round(acc))
-        setCurrentPos({ lng, lat })
+    const onGeoSuccess = (pos) => {
+      const { longitude: lng, latitude: lat, accuracy: acc } = pos.coords
+      const currentMap = mapRef.current
+      if (!currentMap || !liveOnRef.current) return
 
-        // Gürültü filtresi: doğruluk < 50m, hareket > 5m
-        if (acc <= 50) {
-          const cur = [lng, lat]
-          if (lastPointRef.current) {
-            const d = haversine(lastPointRef.current, cur)
-            if (d >= 0.005) {
-              totalDistRef.current += d
-              setTotalDistKm(+(totalDistRef.current.toFixed(3)))
-              lastPointRef.current = cur
-              pathCoordsRef.current = [...pathCoordsRef.current, cur]
-              if (pathCoordsRef.current.length >= 2) {
-                currentMap.getSource(PATH_SRC)?.setData({
-                  type: 'Feature',
-                  geometry: { type: 'LineString', coordinates: pathCoordsRef.current },
-                })
-              }
-            }
-          } else {
+      markerRef.current.setLngLat([lng, lat]).addTo(currentMap)
+      currentMap.getSource(ACC_SRC)?.setData(makeCircle(lat, lng, acc))
+      setAccuracy(Math.round(acc))
+      setCurrentPos({ lng, lat })
+
+      // Gürültü filtresi: doğruluk < 50m, hareket > 5m
+      if (acc <= 50) {
+        const cur = [lng, lat]
+        if (lastPointRef.current) {
+          const d = haversine(lastPointRef.current, cur)
+          if (d >= 0.005) {
+            totalDistRef.current += d
+            setTotalDistKm(+(totalDistRef.current.toFixed(3)))
             lastPointRef.current = cur
-            pathCoordsRef.current = [cur]
+            pathCoordsRef.current = [...pathCoordsRef.current, cur]
+            if (pathCoordsRef.current.length >= 2) {
+              currentMap.getSource(PATH_SRC)?.setData({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: pathCoordsRef.current },
+              })
+            }
           }
+        } else {
+          lastPointRef.current = cur
+          pathCoordsRef.current = [cur]
         }
+      }
 
-        if (firstFixRef.current) {
-          currentMap.flyTo({ center: [lng, lat], zoom: Math.max(currentMap.getZoom(), 16), duration: 1200 })
-          firstFixRef.current = false
-        }
-      },
-      (err) => {
-        const msg = err.code === 1 ? 'Konum izni reddedildi' : 'Konum alınamadı'
-        setError(msg)
-        stopTracking()
-      },
-      { enableHighAccuracy: true, maximumAge: 4000, timeout: 12000 }
-    )
+      if (firstFixRef.current) {
+        currentMap.flyTo({ center: [lng, lat], zoom: Math.max(currentMap.getZoom(), 16), duration: 1200 })
+        firstFixRef.current = false
+      }
+    }
+
+    const onGeoError = (err) => {
+      const msg = err.code === 1 ? 'Konum izni reddedildi' : 'Konum alınamadı'
+      setError(msg)
+      stopTracking()
+    }
+
+    watchIdRef.current = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, geoOpts)
+
+    restartWatchRef.current = () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current)
+        watchIdRef.current = null
+      }
+      watchIdRef.current = navigator.geolocation.watchPosition(onGeoSuccess, onGeoError, geoOpts)
+    }
+
+    requestWakeLock()
   }, [mapRef, stopTracking])
 
   const toggleLive = useCallback(() => {
@@ -216,8 +242,21 @@ export function useLiveLocation(mapRef) {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
       markerRef.current?.remove()
       if (timerRef.current) clearInterval(timerRef.current)
+      wakeLockRef.current?.release().catch(() => {})
     }
   }, [])
+
+  // Sekme/uygulama ön plana gelince wake lock yenile ve GPS izlemeyi yeniden başlat
+  useEffect(() => {
+    async function onVisibilityChange() {
+      if (document.visibilityState !== 'visible' || !liveOnRef.current) return
+      await requestWakeLock()
+      // watchPosition iOS Safari'de arkaplanda durdurulabilir — yeniden başlat
+      restartWatchRef.current?.()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [requestWakeLock])
 
   const avgSpeedKmh = elapsedSec > 60
     ? +(( totalDistKm / (elapsedSec / 3600) ).toFixed(1))

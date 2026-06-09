@@ -110,3 +110,45 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(77,142,245,0.4); }
   50%       { box-shadow: 0 0 0 5px rgba(77,142,245,0); }
 }
+
+.centerBtn {
+  position: absolute;
+  right: 16px;
+  bottom: 95px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1.5px solid rgba(77,142,245,0.5);
+  color: #4d8ef5;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 6;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  transition: all 0.15s;
+  animation: centerBtnIn 0.2s ease;
+}
+
+.centerBtn:hover {
+  background: rgba(77,142,245,0.15);
+  border-color: #4d8ef5;
+  transform: scale(1.08);
+}
+
+@keyframes centerBtnIn {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+  .centerBtn {
+    right: 10px;
+    bottom: 145px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+}

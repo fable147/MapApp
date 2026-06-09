@@ -18,7 +18,7 @@ import LiveStatsHUD from './components/LiveStatsHUD'
 import NavOverlay from './components/NavOverlay'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
-import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid } from './utils/geo'
+import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid, distToPolylineM } from './utils/geo'
 import {
   DRAW_SOURCE_ID, MEASURE_SOURCE_ID, POLYGON_SOURCE_ID,
   TURKEY_CENTER, TURKEY_ZOOM,
@@ -58,6 +58,13 @@ export default function App() {
   const measureMarkersRef = useRef([])
   const polyRef          = useRef([])
   const areaMarkerRef    = useRef(null)
+
+  // Rota sapma tespiti için
+  const activeWaypointsRef   = useRef(null)
+  const activeRouteCoordsRef = useRef(null)
+  const activeTravelModeRef  = useRef('car')
+  const lastRerouteRef       = useRef(0)
+  const deviationStartRef    = useRef(null)
 
   // map click — modeRef üzerinden okur, stale closure yok
   const handleMapClick = useCallback((e) => {
@@ -152,6 +159,38 @@ export default function App() {
       setNavStepIdx((prev) => Math.min(prev + 1, navSteps.length - 1))
     }
   }, [currentPos])
+
+  // GPS güncellenince rotadan saptı mı kontrol et; saptıysa yeniden hesapla
+  useEffect(() => {
+    if (!liveOn || !currentPos) { deviationStartRef.current = null; return }
+    const coords    = activeRouteCoordsRef.current
+    const waypoints = activeWaypointsRef.current
+    if (!coords || !waypoints || waypoints.length < 2) return
+
+    const distM = distToPolylineM([currentPos.lng, currentPos.lat], coords)
+    const now   = Date.now()
+
+    if (distM > 75) {
+      if (!deviationStartRef.current) deviationStartRef.current = now
+      // 3 saniye sürekli sapma + 20 saniyelik cooldown
+      if (now - deviationStartRef.current > 3000 && now - lastRerouteRef.current > 20000) {
+        lastRerouteRef.current    = now
+        deviationStartRef.current = null
+        const newWps = [[currentPos.lng, currentPos.lat], ...waypoints.slice(1)]
+        setStatus('Rotadan çıkıldı — yeniden hesaplanıyor…')
+        getRoute(newWps, activeTravelModeRef.current).then((routes) => {
+          if (!routes) { setStatus('Yeniden rota hesaplanamadı'); return }
+          activeRouteCoordsRef.current = routes[0].coords
+          activeWaypointsRef.current   = newWps
+          const lastWp = newWps[newWps.length - 1]
+          handleRouteSuccess({ lon: lastWp[0], lat: lastWp[1] }, routes[0].steps)
+          setStatus(`Rota güncellendi — ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
+        }).catch(() => setStatus('Yeniden rota hesaplanamadı'))
+      }
+    } else {
+      deviationStartRef.current = null
+    }
+  }, [currentPos, liveOn])
   const fetchProfileRef = useRef(null)
   useEffect(() => { fetchProfileRef.current = fetchProfile }, [fetchProfile])
   const [contextMenu, setContextMenu] = useState(null)
@@ -234,16 +273,21 @@ export default function App() {
 
   async function handleGetRoute(waypoints, travelMode = 'car') {
     setStatus('Rota hesaplanıyor...')
+    activeWaypointsRef.current   = waypoints
+    activeTravelModeRef.current  = travelMode
     try {
       const routes = await getRoute(waypoints, travelMode)
       if (routes) {
+        activeRouteCoordsRef.current = routes[0].coords
         const leg = waypoints.length > 2 ? `${waypoints.length} durak` : ''
         setStatus(`${leg ? leg + ' · ' : ''}${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
       } else {
+        activeRouteCoordsRef.current = null
         setStatus('Rota bulunamadı')
       }
       return routes
     } catch (e) {
+      activeRouteCoordsRef.current = null
       setStatus('Rota alınamadı')
       throw e
     }
@@ -254,6 +298,9 @@ export default function App() {
     setRouteDestCoord(null)
     setNavSteps(null)
     setNavStepIdx(0)
+    activeWaypointsRef.current   = null
+    activeRouteCoordsRef.current = null
+    deviationStartRef.current    = null
     setStatus('Rota temizlendi')
   }
 
@@ -398,6 +445,12 @@ export default function App() {
     setStatus(`${lat.toFixed(5)}, ${lng.toFixed(5)} konumuna gidildi`)
   }
 
+  function handleCenterOnLocation() {
+    if (!currentPos || !mapRef.current) return
+    const map = mapRef.current
+    map.flyTo({ center: [currentPos.lng, currentPos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 })
+  }
+
   function handleLocate() {
     if (!navigator.geolocation) { setStatus('Konum servisi desteklenmiyor'); return }
     setStatus('Konum alınıyor...')
@@ -524,6 +577,8 @@ export default function App() {
           liveOn={liveOn}
           onToggleLive={toggleLive}
           liveAccuracy={liveAccuracy}
+          currentPos={currentPos}
+          onCenterOnLocation={handleCenterOnLocation}
           onSearchSelect={({ lon, lat, name }) => {
             const doFly = () => {
               flyTo([lon, lat], 13, 1000)

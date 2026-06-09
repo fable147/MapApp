@@ -17,6 +17,7 @@ export default function MapControls({
   onCoordGo,
   terrainOn, onToggleTerrain,
   liveOn, onToggleLive, liveAccuracy,
+  currentPos, onCenterOnLocation,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
@@ -110,6 +111,18 @@ export default function MapControls({
           onGo={(lng, lat) => onCoordGo?.(lng, lat)}
           onClose={() => setShowCoordInput(false)}
         />
+      )}
+
+      {/* Konuma ortala — sadece canlı takip aktifken göster */}
+      {liveOn && currentPos && (
+        <button
+          className={styles.centerBtn}
+          onClick={onCenterOnLocation}
+          title="Konuma ortala"
+          aria-label="Konuma ortala"
+        >
+          <i className="ti ti-crosshair" aria-hidden="true" />
+        </button>
       )}
 
       {/* Mini harita */}
