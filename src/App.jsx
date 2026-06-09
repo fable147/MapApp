@@ -22,6 +22,7 @@ import NavOverlay from './components/NavOverlay'
 import ContextMenu from './components/ContextMenu'
 import ElevationChart from './components/ElevationChart'
 import { haversine, geocode, polygonAreaM2, formatArea, polygonCentroid, distToPolylineM } from './utils/geo'
+import { POI_CATEGORIES } from './hooks/usePoi'
 import {
   DRAW_SOURCE_ID, MEASURE_SOURCE_ID, POLYGON_SOURCE_ID,
   TURKEY_CENTER, TURKEY_ZOOM,
@@ -489,11 +490,13 @@ export default function App() {
       onLightMode:      () => { if (theme !== 'light') toggleTheme() },
       onToggleBuildings: toggleBuildings,
       onFlyToTurkey:    () => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") },
-      onSearchNearby:   (type) => {
+      onSearchNearby:   (id) => {
         const m = mapRef.current; if (!m) return
+        const cat = POI_CATEGORIES.find((c) => c.id === id)
+        if (!cat) return
         const { lat, lng } = m.getCenter()
-        searchPoi({ id: type, label: type }, lat, lng)
-        setStatus(`Yakın ${type} aranıyor…`)
+        searchPoi(cat, lat, lng)
+        setStatus(`Yakın ${cat.label} aranıyor…`)
       },
     })
 

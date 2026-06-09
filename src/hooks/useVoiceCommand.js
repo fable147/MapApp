@@ -1,13 +1,28 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 
+// Türkçe anahtar kelime → { id: POI_CATEGORIES id'si, label: Türkçe etiket }
 const NEARBY_MAP = {
-  restoran: 'restaurant', yemek: 'restaurant', lokanta: 'restaurant',
-  kafe: 'cafe', kahve: 'cafe', kahvehane: 'cafe',
-  otel: 'hotel', pansiyon: 'hotel',
-  market: 'supermarket', bakkal: 'supermarket',
-  eczane: 'pharmacy', hastane: 'hospital',
-  benzin: 'fuel', akaryakıt: 'fuel',
-  park: 'park', müze: 'museum', cami: 'place_of_worship',
+  hastane: { id: 'hospital',     label: 'Hastane'  },
+  hastaneler: { id: 'hospital',  label: 'Hastane'  },
+  eczane:  { id: 'pharmacy',     label: 'Eczane'   },
+  eczaneler: { id: 'pharmacy',   label: 'Eczane'   },
+  kafe:    { id: 'cafe',         label: 'Kafe'     },
+  kahve:   { id: 'cafe',         label: 'Kafe'     },
+  kahvehane: { id: 'cafe',       label: 'Kafe'     },
+  restoran: { id: 'restaurant',  label: 'Restoran' },
+  yemek:   { id: 'restaurant',   label: 'Restoran' },
+  lokanta: { id: 'restaurant',   label: 'Restoran' },
+  atm:     { id: 'atm',          label: 'ATM'      },
+  benzin:  { id: 'fuel',         label: 'Benzin'   },
+  akaryakıt: { id: 'fuel',       label: 'Benzin'   },
+  market:  { id: 'supermarket',  label: 'Market'   },
+  bakkal:  { id: 'supermarket',  label: 'Market'   },
+  süpermarket: { id: 'supermarket', label: 'Market' },
+  otel:    { id: 'hotel',        label: 'Otel'     },
+  pansiyon: { id: 'hotel',       label: 'Otel'     },
+  park:    { id: 'park',         label: 'Park'     },
+  okul:    { id: 'school',       label: 'Okul'     },
+  ilkokul: { id: 'school',       label: 'Okul'     },
 }
 
 function extractDestination(text) {
@@ -60,8 +75,8 @@ function matchCommand(raw) {
   if (/türkiye|ana sayfa|geri dön/.test(t)) return { action: 'flyToTurkey' }
 
   // — Yakın POI —
-  for (const [tr, en] of Object.entries(NEARBY_MAP)) {
-    if (t.includes(tr)) return { action: 'searchNearby', payload: en }
+  for (const [tr, info] of Object.entries(NEARBY_MAP)) {
+    if (t.includes(tr)) return { action: 'searchNearby', payload: info.id, label: info.label }
   }
 
   return null
@@ -144,7 +159,7 @@ export function useVoiceCommand(handlers) {
         h.onFlyToTurkey?.()
         break
       case 'searchNearby':
-        showFeedback(`Yakın ${text} aranıyor…`)
+        showFeedback(`Yakın ${cmd.label} aranıyor…`)
         h.onSearchNearby?.(cmd.payload)
         break
       default: break
