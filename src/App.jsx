@@ -13,6 +13,9 @@ import { useRestaurants } from './hooks/useRestaurants'
 import { useTraffic } from './hooks/useTraffic'
 import { useWeatherLayer } from './hooks/useWeatherLayer'
 import { useLiveLocation } from './hooks/useLiveLocation'
+import { useVoiceNav } from './hooks/useVoiceNav'
+import { useVoiceCommand } from './hooks/useVoiceCommand'
+import VoiceFeedback from './components/VoiceFeedback'
 import WeatherLegend from './components/WeatherLegend'
 import LiveStatsHUD from './components/LiveStatsHUD'
 import NavOverlay from './components/NavOverlay'
@@ -116,6 +119,7 @@ export default function App() {
     mapRef, setGeoJsonLine, setGeoJsonPolygon, clearGeoJson,
     flyTo, fitBounds, changeStyle, setCursor,
     terrainOn, toggleTerrain,
+    buildingsOn, toggleBuildings,
   } = useMap(containerRef, handleMapClick)
 
   const { pins, addPin, removePin, clearPins, focusPin } = usePins(mapRef)
@@ -149,6 +153,10 @@ export default function App() {
     ? haversine([currentPos.lng, currentPos.lat], navSteps[navStepIdx].location) * 1000
     : null
 
+  const { voiceOn, toggleVoice, speak } = useVoiceNav({ navSteps, navStepIdx, distToNextM, liveOn })
+  const speakRef = useRef(speak)
+  useEffect(() => { speakRef.current = speak }, [speak])
+
   // GPS güncellenince mevcut adıma yaklaşıldıysa otomatik ilerle
   useEffect(() => {
     if (!liveOn || !currentPos || !navSteps || navStepIdx >= navSteps.length - 1) return
@@ -178,6 +186,7 @@ export default function App() {
         deviationStartRef.current = null
         const newWps = [[currentPos.lng, currentPos.lat], ...waypoints.slice(1)]
         setStatus('Rotadan çıkıldı — yeniden hesaplanıyor…')
+        speakRef.current?.('Rotadan çıkıldı, yeniden hesaplanıyor')
         getRoute(newWps, activeTravelModeRef.current).then((routes) => {
           if (!routes) { setStatus('Yeniden rota hesaplanamadı'); return }
           activeRouteCoordsRef.current = routes[0].coords
@@ -185,6 +194,7 @@ export default function App() {
           const lastWp = newWps[newWps.length - 1]
           handleRouteSuccess({ lon: lastWp[0], lat: lastWp[1] }, routes[0].steps)
           setStatus(`Rota güncellendi — ${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
+          speakRef.current?.(routes[0].steps?.[0]?.label ?? 'Rota güncellendi')
         }).catch(() => setStatus('Yeniden rota hesaplanamadı'))
       }
     } else {
@@ -451,6 +461,42 @@ export default function App() {
     map.flyTo({ center: [currentPos.lng, currentPos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 })
   }
 
+  async function handleVoiceNavigate(destName) {
+    setStatus(`"${destName}" aranıyor…`)
+    try {
+      const result = await geocode(destName)
+      if (!result) { setStatus(`"${destName}" bulunamadı`); return }
+      const [destLng, destLat] = result
+      const start = (liveOn && currentPos)
+        ? [currentPos.lng, currentPos.lat]
+        : (() => { const c = mapRef.current?.getCenter(); return c ? [c.lng, c.lat] : null })()
+      if (!start) return
+      const routes = await handleGetRoute([start, [destLng, destLat]], 'car')
+      if (routes) handleRouteSuccess({ lon: destLng, lat: destLat }, routes[0].steps)
+    } catch { setStatus('Rota hesaplanamadı') }
+  }
+
+  const { listening: voiceListening, toggleListening, transcript: voiceTranscript, feedback: voiceFeedback } =
+    useVoiceCommand({
+      onNavigate:       handleVoiceNavigate,
+      onLocate:         handleLocate,
+      onClearAll:       handleClearAll,
+      onClearRoute:     handleClearRoute,
+      onZoomIn:         () => { const m = mapRef.current; if (m) m.zoomIn() },
+      onZoomOut:        () => { const m = mapRef.current; if (m) m.zoomOut() },
+      onToggleLive:     toggleLive,
+      onDarkMode:       () => { if (theme !== 'dark')  toggleTheme() },
+      onLightMode:      () => { if (theme !== 'light') toggleTheme() },
+      onToggleBuildings: toggleBuildings,
+      onFlyToTurkey:    () => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") },
+      onSearchNearby:   (type) => {
+        const m = mapRef.current; if (!m) return
+        const { lat, lng } = m.getCenter()
+        searchPoi({ id: type, label: type }, lat, lng)
+        setStatus(`Yakın ${type} aranıyor…`)
+      },
+    })
+
   function handleLocate() {
     if (!navigator.geolocation) { setStatus('Konum servisi desteklenmiyor'); return }
     setStatus('Konum alınıyor...')
@@ -548,6 +594,8 @@ export default function App() {
           navSteps={navSteps}
           navStepIdx={navStepIdx}
           distToNextM={distToNextM}
+          voiceOn={voiceOn}
+          onToggleVoice={toggleVoice}
         />
         <LiveStatsHUD
           liveOn={liveOn}
@@ -574,11 +622,15 @@ export default function App() {
           onCoordGo={handleCoordGo}
           terrainOn={terrainOn}
           onToggleTerrain={toggleTerrain}
+          buildingsOn={buildingsOn}
+          onToggleBuildings={toggleBuildings}
           liveOn={liveOn}
           onToggleLive={toggleLive}
           liveAccuracy={liveAccuracy}
           currentPos={currentPos}
           onCenterOnLocation={handleCenterOnLocation}
+          voiceListening={voiceListening}
+          onToggleVoiceCommand={toggleListening}
           onSearchSelect={({ lon, lat, name }) => {
             const doFly = () => {
               flyTo([lon, lat], 13, 1000)
@@ -589,6 +641,11 @@ export default function App() {
             else mapRef.current?.once('load', doFly)
           }}
         />
+      <VoiceFeedback
+        listening={voiceListening}
+        transcript={voiceTranscript}
+        feedback={voiceFeedback}
+      />
       <ElevationChart
         profile={profile}
         loading={elevLoading}

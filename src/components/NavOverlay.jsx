@@ -7,7 +7,7 @@ function formatNavDist(m) {
   return `${(m / 1000).toFixed(1)} km`
 }
 
-export default function NavOverlay({ liveOn, navSteps, navStepIdx, distToNextM }) {
+export default function NavOverlay({ liveOn, navSteps, navStepIdx, distToNextM, voiceOn, onToggleVoice }) {
   if (!liveOn || !navSteps || navSteps.length === 0) return null
 
   const step   = navSteps[navStepIdx]
@@ -26,6 +26,14 @@ export default function NavOverlay({ liveOn, navSteps, navStepIdx, distToNextM }
           <div className={styles.dist}>{formatNavDist(distToNextM)}</div>
         )}
       </div>
+      <button
+        className={`${styles.muteBtn} ${!voiceOn ? styles.muteBtnOff : ''}`}
+        onClick={onToggleVoice}
+        title={voiceOn ? 'Sesi kapat' : 'Sesi aç'}
+        aria-label={voiceOn ? 'Sesi kapat' : 'Sesi aç'}
+      >
+        <i className={`ti ${voiceOn ? 'ti-volume' : 'ti-volume-off'}`} />
+      </button>
     </div>
   )
 }

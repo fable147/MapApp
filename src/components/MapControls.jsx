@@ -16,8 +16,10 @@ export default function MapControls({
   theme, onToggleTheme,
   onCoordGo,
   terrainOn, onToggleTerrain,
+  buildingsOn, onToggleBuildings,
   liveOn, onToggleLive, liveAccuracy,
   currentPos, onCenterOnLocation,
+  voiceListening, onToggleVoiceCommand,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
@@ -78,12 +80,28 @@ export default function MapControls({
           <i className="ti ti-mountain" aria-hidden="true" />
         </button>
         <button
+          className={`${styles.btn} ${buildingsOn ? styles.btnActive : ''}`}
+          onClick={onToggleBuildings}
+          title="3D Binalar"
+          aria-label="3D Binalar"
+        >
+          <i className="ti ti-building-skyscraper" aria-hidden="true" />
+        </button>
+        <button
           className={`${styles.btn} ${(weather || weatherLoading) ? styles.btnActive : ''}`}
           onClick={onWeatherRequest}
           title="Hava durumu"
           aria-label="Hava durumu"
         >
           <i className="ti ti-cloud" aria-hidden="true" />
+        </button>
+        <button
+          className={`${styles.btn} ${voiceListening ? styles.btnVoice : ''}`}
+          onClick={onToggleVoiceCommand}
+          title={voiceListening ? 'Dinlemeyi durdur' : 'Ses komutu'}
+          aria-label="Ses komutu"
+        >
+          <i className={`ti ${voiceListening ? 'ti-microphone' : 'ti-microphone'}`} aria-hidden="true" />
         </button>
       </div>
 

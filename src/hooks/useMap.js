@@ -8,8 +8,42 @@ import {
   TURKEY_CENTER, TURKEY_ZOOM,
 } from '../utils/constants'
 
-const EMPTY_FC       = { type: 'FeatureCollection', features: [] }
-const TERRAIN_SOURCE = 'terrain-dem'
+const EMPTY_FC        = { type: 'FeatureCollection', features: [] }
+const TERRAIN_SOURCE  = 'terrain-dem'
+const BUILDINGS_LAYER = '3d-buildings'
+
+function findBuildingSourceId(map) {
+  for (const layer of (map.getStyle()?.layers ?? [])) {
+    if (layer['source-layer'] === 'building' && layer.source) return layer.source
+  }
+  return null
+}
+
+function addBuildingsLayer(map) {
+  if (map.getLayer(BUILDINGS_LAYER)) return
+  const sourceId = findBuildingSourceId(map)
+  if (!sourceId) return
+  map.addLayer({
+    id:   BUILDINGS_LAYER,
+    type: 'fill-extrusion',
+    source: sourceId,
+    'source-layer': 'building',
+    minzoom: 14,
+    paint: {
+      'fill-extrusion-color': [
+        'interpolate', ['linear'],
+        ['coalesce', ['get', 'render_height'], ['get', 'height'], 0],
+        0,   '#c0cfe0',
+        40,  '#90a8c4',
+        100, '#6a8aae',
+        200, '#4d6e96',
+      ],
+      'fill-extrusion-height':  ['coalesce', ['get', 'render_height'],     ['get', 'height'],     10],
+      'fill-extrusion-base':    ['coalesce', ['get', 'render_min_height'], ['get', 'min_height'],  0],
+      'fill-extrusion-opacity': 0.85,
+    },
+  })
+}
 
 const TERRAIN_DEF = {
   type:     'raster-dem',
@@ -42,8 +76,10 @@ export function useMap(containerRef, onMapClick) {
   const onClickRef   = useRef(onMapClick)
   onClickRef.current = onMapClick
 
-  const terrainOnRef         = useRef(false)
-  const [terrainOn, setTerrainOn] = useState(false)
+  const terrainOnRef           = useRef(false)
+  const [terrainOn, setTerrainOn]       = useState(false)
+  const buildingsOnRef         = useRef(false)
+  const [buildingsOn, setBuildingsOn]   = useState(false)
 
   useEffect(() => {
     if (mapRef.current) return
@@ -160,7 +196,8 @@ export function useMap(containerRef, onMapClick) {
         })
       }
       if (terrainOnRef.current) addTerrainToMap(map)
-      map.easeTo({ pitch: conf.pitch ?? 0, duration: 800 })
+      if (buildingsOnRef.current) addBuildingsLayer(map)
+      map.easeTo({ pitch: conf.pitch ?? (buildingsOnRef.current ? 45 : 0), duration: 800 })
       onStyleLoaded?.()
     })
   }, [])
@@ -184,6 +221,21 @@ export function useMap(containerRef, onMapClick) {
     }
   }, [])
 
+  const toggleBuildings = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (!buildingsOnRef.current) {
+      addBuildingsLayer(map)
+      if (map.getPitch() < 20) map.easeTo({ pitch: 45, duration: 700 })
+      buildingsOnRef.current = true
+      setBuildingsOn(true)
+    } else {
+      try { if (map.getLayer(BUILDINGS_LAYER)) map.removeLayer(BUILDINGS_LAYER) } catch {}
+      buildingsOnRef.current = false
+      setBuildingsOn(false)
+    }
+  }, [])
+
   const setCursor = useCallback((cursor) => {
     if (mapRef.current) mapRef.current.getCanvas().style.cursor = cursor
   }, [])
@@ -192,5 +244,6 @@ export function useMap(containerRef, onMapClick) {
     mapRef, setGeoJsonLine, setGeoJsonPolygon, clearGeoJson,
     flyTo, fitBounds, changeStyle, setCursor,
     terrainOn, toggleTerrain,
+    buildingsOn, toggleBuildings,
   }
 }
