@@ -1,27 +1,95 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const cache = {}
+// Photon (komoot) — OSM verisi, CORS açık, rate-limit yok, autocomplete için tasarlandı
+// Tek seferde TOTAL_FETCH sonuç çekilir; "daha fazla" client-side gösterilir (ekstra istek yok)
+const TOTAL_FETCH  = 20
+const PAGE_SIZE    =  8
+const cache        = {}
 
+// ── Yardımcılar ──────────────────────────────────────────────────────────────
+function buildShortName(p) {
+  return p.name || p.street || p.city || p.town || p.village || p.county || p.state || p.country || ''
+}
+
+function buildDisplayName(p) {
+  const parts = [
+    p.name,
+    p.street,
+    p.district || p.suburb,
+    p.city || p.town || p.village,
+    p.county,
+    p.state,
+    p.country,
+  ].filter(Boolean)
+  return [...new Set(parts)].join(', ')
+}
+
+function resolveIcon(p) {
+  const k = p.osm_key   || ''
+  const v = p.osm_value || ''
+  if (k === 'boundary' || v === 'administrative') return 'ti-building-community'
+  if (v === 'city' || v === 'town' || v === 'village') return 'ti-building-community'
+  if (k === 'highway') return 'ti-road'
+  if (k === 'amenity') return 'ti-building-store'
+  if (k === 'tourism') return 'ti-camera'
+  if (k === 'natural') return 'ti-trees'
+  if (k === 'waterway' || v === 'river' || v === 'lake') return 'ti-droplet'
+  return 'ti-map-pin'
+}
+
+function sortAlpha(items) {
+  return [...items].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, 'tr', { sensitivity: 'base' })
+  )
+}
+
+async function fetchAll(q, signal) {
+  const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=${TOTAL_FETCH}`
+  const res  = await fetch(url, { signal })
+  const data = await res.json()
+
+  const items = (data.features || []).map((f) => {
+    const p = f.properties || {}
+    return {
+      displayName: buildDisplayName(p),
+      shortName:   buildShortName(p),
+      lat: f.geometry.coordinates[1],
+      lon: f.geometry.coordinates[0],
+      icon: resolveIcon(p),
+    }
+  }).filter(item => item.shortName)
+
+  return sortAlpha(items)
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 export function useAutocomplete(delay = 300) {
-  const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [query,        setQuery]       = useState('')
+  const [allResults,   setAllResults]  = useState([])
+  const [showCount,    setShowCount]   = useState(PAGE_SIZE)
+  const [loading,      setLoading]     = useState(false)
+  const [open,         setOpen]        = useState(false)
   const [highlightIdx, setHighlightIdx] = useState(-1)
-  const abortRef = useRef(null)
-  const timerRef = useRef(null)
-  // suggestions'ın güncel halini ref'te tut — stale closure olmaz
-  const suggestionsRef = useRef([])
 
-  useEffect(() => {
-    suggestionsRef.current = suggestions
-  }, [suggestions])
+  const abortRef    = useRef(null)
+  const timerRef    = useRef(null)
+  const allRef      = useRef([])
+  const showRef     = useRef(PAGE_SIZE)
 
+  useEffect(() => { allRef.current  = allResults   }, [allResults])
+  useEffect(() => { showRef.current = showCount     }, [showCount])
+
+  const suggestions = allResults.slice(0, showCount)
+  const hasMore     = showCount < allResults.length
+  const loadingMore = false // tüm veriler çekilmiş, sadece gösterim artıyor
+
+  // ── Debounced arama ──
   useEffect(() => {
     const q = query.trim()
 
     if (q.length < 2) {
-      setSuggestions([])
+      setAllResults([])
+      setShowCount(PAGE_SIZE)
       setOpen(false)
       setLoading(false)
       setHighlightIdx(-1)
@@ -34,8 +102,10 @@ export function useAutocomplete(delay = 300) {
     timerRef.current = setTimeout(async () => {
       const key = q.toLowerCase()
       if (cache[key]) {
-        setSuggestions(cache[key])
-        setOpen(cache[key].length > 0)
+        const cached = cache[key]
+        setAllResults(cached)
+        setShowCount(PAGE_SIZE)
+        setOpen(cached.length > 0)
         setHighlightIdx(-1)
         return
       }
@@ -45,29 +115,14 @@ export function useAutocomplete(delay = 300) {
       abortRef.current = controller
 
       try {
-        const url =
-          `https://nominatim.openstreetmap.org/search` +
-          `?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`
-        const res = await fetch(url, {
-          headers: { 'Accept-Language': 'tr' },
-          signal: controller.signal,
-        })
-        const data = await res.json()
-
-        const mapped = data.map((item) => ({
-          displayName: item.display_name,
-          shortName: buildShortName(item),
-          lat: parseFloat(item.lat),
-          lon: parseFloat(item.lon),
-          icon: resolveIcon(item),
-        }))
-
-        cache[key] = mapped
-        setSuggestions(mapped)
-        setOpen(mapped.length > 0)
+        const items = await fetchAll(q, controller.signal)
+        cache[key] = items
+        setAllResults(items)
+        setShowCount(PAGE_SIZE)
+        setOpen(items.length > 0)
         setHighlightIdx(-1)
       } catch (err) {
-        if (err.name !== 'AbortError') setSuggestions([])
+        if (err.name !== 'AbortError') setAllResults([])
       } finally {
         setLoading(false)
       }
@@ -76,9 +131,15 @@ export function useAutocomplete(delay = 300) {
     return () => clearTimeout(timerRef.current)
   }, [query, delay])
 
+  // Client-side daha fazla göster (ek API isteği yok)
+  const loadMore = useCallback(() => {
+    setShowCount(prev => Math.min(prev + PAGE_SIZE, allRef.current.length))
+  }, [])
+
   const select = useCallback((suggestion) => {
     setQuery(suggestion.shortName)
-    setSuggestions([])
+    setAllResults([])
+    setShowCount(PAGE_SIZE)
     setOpen(false)
     setHighlightIdx(-1)
     return { lon: suggestion.lon, lat: suggestion.lat, name: suggestion.shortName }
@@ -86,7 +147,8 @@ export function useAutocomplete(delay = 300) {
 
   const clear = useCallback(() => {
     setQuery('')
-    setSuggestions([])
+    setAllResults([])
+    setShowCount(PAGE_SIZE)
     setOpen(false)
     setHighlightIdx(-1)
   }, [])
@@ -96,11 +158,9 @@ export function useAutocomplete(delay = 300) {
     setHighlightIdx(-1)
   }, [])
 
-  // setHighlightIdx içinde fonksiyonel form kullanılıyor —
-  // suggestionsRef ile güncel length okunur, stale closure yok
   const highlightNext = useCallback(() => {
     setHighlightIdx((prev) => {
-      const max = suggestionsRef.current.length - 1
+      const max = allRef.current.slice(0, showRef.current).length - 1
       return prev >= max ? max : prev + 1
     })
   }, [])
@@ -111,31 +171,9 @@ export function useAutocomplete(delay = 300) {
 
   return {
     query, setQuery,
-    suggestions, loading, open,
+    suggestions, loading, loadingMore, hasMore, open,
     highlightIdx,
-    select, clear, close,
+    select, clear, close, loadMore,
     highlightNext, highlightPrev,
   }
-}
-
-function buildShortName(item) {
-  const a = item.address || {}
-  const name =
-    a.city || a.town || a.village || a.municipality ||
-    a.county || a.state || a.country || item.display_name.split(',')[0]
-  const country = a.country && a.country !== name ? `, ${a.country}` : ''
-  return name + country
-}
-
-function resolveIcon(item) {
-  const t = item.type || ''
-  const cls = item.class || ''
-  if (cls === 'boundary' || t === 'administrative') return 'ti-building-community'
-  if (t === 'city' || t === 'town' || t === 'village') return 'ti-building-community'
-  if (cls === 'highway' || t === 'road' || t === 'street') return 'ti-road'
-  if (cls === 'amenity') return 'ti-building-store'
-  if (cls === 'tourism') return 'ti-camera'
-  if (cls === 'natural') return 'ti-trees'
-  if (cls === 'water' || t === 'river' || t === 'lake') return 'ti-droplet'
-  return 'ti-map-pin'
 }

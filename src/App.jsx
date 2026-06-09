@@ -15,7 +15,9 @@ import { useWeatherLayer } from './hooks/useWeatherLayer'
 import { useLiveLocation } from './hooks/useLiveLocation'
 import { useVoiceNav } from './hooks/useVoiceNav'
 import { useVoiceCommand } from './hooks/useVoiceCommand'
+import { useMapillary } from './hooks/useMapillary'
 import VoiceFeedback from './components/VoiceFeedback'
+import MapillaryViewer from './components/MapillaryViewer'
 import WeatherLegend from './components/WeatherLegend'
 import LiveStatsHUD from './components/LiveStatsHUD'
 import NavOverlay from './components/NavOverlay'
@@ -142,9 +144,12 @@ export default function App() {
   const { activeWeatherLayer, selectWeatherLayer } = useWeatherLayer(mapRef)
   const { liveOn, toggleLive, accuracy: liveAccuracy, liveError,
           totalDistKm, elapsedSec, avgSpeedKmh, currentPos } = useLiveLocation(mapRef)
+  const { mapillaryOn, toggleMapillary,
+          mapillaryImage, mapillaryLoading, closeMapillary } = useMapillary(mapRef)
   const [routeDestCoord, setRouteDestCoord] = useState(null)
   const [navSteps,       setNavSteps]       = useState(null)
   const [navStepIdx,     setNavStepIdx]     = useState(0)
+  const [routeInfo,      setRouteInfo]      = useState(null) // { durationMin, distanceKm }
 
   const remainingKm = (liveOn && currentPos && routeDestCoord)
     ? haversine([currentPos.lng, currentPos.lat], [routeDestCoord.lon, routeDestCoord.lat])
@@ -290,10 +295,12 @@ export default function App() {
       const routes = await getRoute(waypoints, travelMode)
       if (routes) {
         activeRouteCoordsRef.current = routes[0].coords
+        setRouteInfo({ durationMin: routes[0].durationMin, distanceKm: routes[0].distanceKm })
         const leg = waypoints.length > 2 ? `${waypoints.length} durak` : ''
         setStatus(`${leg ? leg + ' · ' : ''}${routes[0].distanceKm} km, ${routes[0].durationMin} dk`)
       } else {
         activeRouteCoordsRef.current = null
+        setRouteInfo(null)
         setStatus('Rota bulunamadı')
       }
       return routes
@@ -309,6 +316,7 @@ export default function App() {
     setRouteDestCoord(null)
     setNavSteps(null)
     setNavStepIdx(0)
+    setRouteInfo(null)
     activeWaypointsRef.current   = null
     activeRouteCoordsRef.current = null
     deviationStartRef.current    = null
@@ -462,7 +470,7 @@ export default function App() {
     map.flyTo({ center: [currentPos.lng, currentPos.lat], zoom: Math.max(map.getZoom(), 15), duration: 800 })
   }
 
-  async function handleVoiceNavigate(destName) {
+  async function handleVoiceNavigate(destName, travelMode = 'car') {
     setStatus(`"${destName}" aranıyor…`)
     try {
       const result = await geocode(destName)
@@ -472,25 +480,62 @@ export default function App() {
         ? [currentPos.lng, currentPos.lat]
         : (() => { const c = mapRef.current?.getCenter(); return c ? [c.lng, c.lat] : null })()
       if (!start) return
-      const routes = await handleGetRoute([start, [destLng, destLat]], 'car')
+      const routes = await handleGetRoute([start, [destLng, destLat]], travelMode)
       if (routes) handleRouteSuccess({ lon: destLng, lat: destLat }, routes[0].steps)
     } catch { setStatus('Rota hesaplanamadı') }
   }
 
   const { listening: voiceListening, toggleListening, transcript: voiceTranscript, feedback: voiceFeedback } =
     useVoiceCommand({
-      onNavigate:       handleVoiceNavigate,
-      onLocate:         handleLocate,
-      onClearAll:       handleClearAll,
-      onClearRoute:     handleClearRoute,
-      onZoomIn:         () => { const m = mapRef.current; if (m) m.zoomIn() },
-      onZoomOut:        () => { const m = mapRef.current; if (m) m.zoomOut() },
-      onToggleLive:     toggleLive,
-      onDarkMode:       () => { if (theme !== 'dark')  toggleTheme() },
-      onLightMode:      () => { if (theme !== 'light') toggleTheme() },
+      onNavigate:        handleVoiceNavigate,
+      onLocate:          handleLocate,
+      onClearAll:        handleClearAll,
+      onClearRoute:      handleClearRoute,
+      onClearPins:       clearPins,
+
+      onZoomIn:  (steps = 1) => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() + steps, { duration: 500 }) },
+      onZoomOut: (steps = 1) => { const m = mapRef.current; if (m) m.zoomTo(m.getZoom() - steps, { duration: 500 }) },
+      onZoomTo:  (level)     => { mapRef.current?.zoomTo(level, { duration: 600 }) },
+
+      onResetBearing: () => mapRef.current?.easeTo({ bearing: 0, duration: 700 }),
+      onTiltMap:      () => mapRef.current?.easeTo({ pitch: 50, duration: 700 }),
+      onFlatMap:      () => mapRef.current?.easeTo({ pitch: 0,  duration: 700 }),
+
+      onChangeStyle:    (key) => { handleStyleChange(key) },
+      onToggleTerrain:  toggleTerrain,
       onToggleBuildings: toggleBuildings,
-      onFlyToTurkey:    () => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") },
-      onSearchNearby:   (id) => {
+
+      onToggleTraffic: toggleFlow,
+      onTrafficOn:     () => { if (!flowOn)  toggleFlow() },
+      onTrafficOff:    () => { if (flowOn)   toggleFlow() },
+
+      onWeather:      handleWeatherRequest,
+      onCloseWeather: clearWeather,
+
+      onToggleLive:  toggleLive,
+      onDarkMode:    () => { if (theme !== 'dark')  toggleTheme() },
+      onLightMode:   () => { if (theme !== 'light') toggleTheme() },
+
+      onSetMode:    setMode,
+      onAddPinHere: () => {
+        const pos = currentPos ?? (() => { const c = mapRef.current?.getCenter(); return c ? { lng: c.lng, lat: c.lat } : null })()
+        if (pos) addPin(pos.lng, pos.lat, 'Sesli Pin')
+      },
+
+      onFlyToTurkey: () => { flyTo(TURKEY_CENTER, TURKEY_ZOOM, 1400); setStatus("Türkiye'ye odaklanıldı") },
+      onCenterOnLocation: handleCenterOnLocation,
+
+      onMuteNav:    () => { if (voiceOn)  toggleVoice() },
+      onUnmuteNav:  () => { if (!voiceOn) toggleVoice() },
+      onNextNavStep: () => setNavStepIdx((p) => Math.min(p + 1, (navSteps?.length ?? 1) - 1)),
+      onPrevNavStep: () => setNavStepIdx((p) => Math.max(p - 1, 0)),
+
+      onFullscreen: () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.()
+        else document.exitFullscreen?.()
+      },
+
+      onSearchNearby: (id) => {
         const m = mapRef.current; if (!m) return
         const cat = POI_CATEGORIES.find((c) => c.id === id)
         if (!cat) return
@@ -599,6 +644,8 @@ export default function App() {
           distToNextM={distToNextM}
           voiceOn={voiceOn}
           onToggleVoice={toggleVoice}
+          routeInfo={routeInfo}
+          remainingKm={remainingKm}
         />
         <LiveStatsHUD
           liveOn={liveOn}
@@ -634,6 +681,8 @@ export default function App() {
           onCenterOnLocation={handleCenterOnLocation}
           voiceListening={voiceListening}
           onToggleVoiceCommand={toggleListening}
+          mapillaryOn={mapillaryOn}
+          onToggleMapillary={toggleMapillary}
           onSearchSelect={({ lon, lat, name }) => {
             const doFly = () => {
               flyTo([lon, lat], 13, 1000)
@@ -648,6 +697,11 @@ export default function App() {
         listening={voiceListening}
         transcript={voiceTranscript}
         feedback={voiceFeedback}
+      />
+      <MapillaryViewer
+        image={mapillaryImage}
+        loading={mapillaryLoading}
+        onClose={closeMapillary}
       />
       <ElevationChart
         profile={profile}

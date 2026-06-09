@@ -68,6 +68,25 @@
   line-height: 1;
 }
 
+.eta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 2px;
+  font-family: 'Space Mono', monospace;
+}
+
+.eta .ti {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.etaSep {
+  opacity: 0.4;
+}
+
 .muteBtn {
   pointer-events: all;
   background: none;

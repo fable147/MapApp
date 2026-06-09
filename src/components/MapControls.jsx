@@ -20,6 +20,7 @@ export default function MapControls({
   liveOn, onToggleLive, liveAccuracy,
   currentPos, onCenterOnLocation,
   voiceListening, onToggleVoiceCommand,
+  mapillaryOn, onToggleMapillary,
 }) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showCoordInput, setShowCoordInput] = useState(false)
@@ -101,7 +102,15 @@ export default function MapControls({
           title={voiceListening ? 'Dinlemeyi durdur' : 'Ses komutu'}
           aria-label="Ses komutu"
         >
-          <i className={`ti ${voiceListening ? 'ti-microphone' : 'ti-microphone'}`} aria-hidden="true" />
+          <i className="ti ti-microphone" aria-hidden="true" />
+        </button>
+        <button
+          className={`${styles.btn} ${mapillaryOn ? styles.btnActive : ''}`}
+          onClick={onToggleMapillary}
+          title="Sokak Görünümü (Mapillary)"
+          aria-label="Sokak Görünümü"
+        >
+          <i className="ti ti-walk" aria-hidden="true" />
         </button>
       </div>
 
